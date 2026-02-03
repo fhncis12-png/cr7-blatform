@@ -3,11 +3,28 @@ import { Check, Crown, Zap } from 'lucide-react';
 import { VIPLevel } from '@/data/mockData';
 import { GoldButton } from '../ui/GoldButton';
 
+// Import VIP background images
+import vip0Bg from '@/assets/vip/vip-0-rookie.jpg';
+import vip1Bg from '@/assets/vip/vip-1-bronze.jpg';
+import vip2Bg from '@/assets/vip/vip-2-silver.jpg';
+import vip3Bg from '@/assets/vip/vip-3-gold.jpg';
+import vip4Bg from '@/assets/vip/vip-4-platinum.jpg';
+import vip5Bg from '@/assets/vip/vip-5-diamond.jpg';
+
 interface VIPCardProps {
   vipLevel: VIPLevel;
   currentLevel: number;
   index: number;
 }
+
+const vipBackgrounds: Record<number, string> = {
+  0: vip0Bg,
+  1: vip1Bg,
+  2: vip2Bg,
+  3: vip3Bg,
+  4: vip4Bg,
+  5: vip5Bg,
+};
 
 export const VIPCard = ({ vipLevel, currentLevel, index }: VIPCardProps) => {
   const isCurrentLevel = vipLevel.level === currentLevel;
@@ -32,6 +49,19 @@ export const VIPCard = ({ vipLevel, currentLevel, index }: VIPCardProps) => {
         isCurrentLevel ? 'ring-2 ring-primary shadow-glow' : ''
       }`}
     >
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: `url(${vipBackgrounds[vipLevel.level]})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+        }}
+      >
+        {/* Dark Overlay for readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-background/60" />
+      </div>
+
       {/* Current Level Badge */}
       {isCurrentLevel && (
         <div className="absolute top-3 left-3 z-10">
@@ -43,7 +73,7 @@ export const VIPCard = ({ vipLevel, currentLevel, index }: VIPCardProps) => {
       )}
 
       {/* Card Content */}
-      <div className="bg-gradient-card border border-border p-5">
+      <div className="relative z-[1] p-5">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -70,11 +100,11 @@ export const VIPCard = ({ vipLevel, currentLevel, index }: VIPCardProps) => {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="bg-secondary/50 rounded-xl p-3 text-center">
+          <div className="bg-secondary/70 backdrop-blur-sm rounded-xl p-3 text-center">
             <p className="text-lg font-bold text-foreground">{vipLevel.dailyChallengeLimit}</p>
             <p className="text-xs text-muted-foreground">تحدي يومي</p>
           </div>
-          <div className="bg-secondary/50 rounded-xl p-3 text-center">
+          <div className="bg-secondary/70 backdrop-blur-sm rounded-xl p-3 text-center">
             <p className="text-lg font-bold text-primary">x{vipLevel.rewardMultiplier}</p>
             <p className="text-xs text-muted-foreground">مضاعف المكافأة</p>
           </div>
