@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, 
@@ -11,11 +12,13 @@ import {
   HelpCircle,
   ChevronLeft
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { GoldButton } from '@/components/ui/GoldButton';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { DepositModal } from '@/components/wallet/DepositModal';
+import { WithdrawalModal } from '@/components/wallet/WithdrawalModal';
+import { TransactionsHistory } from '@/components/wallet/TransactionsHistory';
 
 interface Transaction {
   id: string;
@@ -30,6 +33,8 @@ const Profile = () => {
   const { profile, signOut } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDepositOpen, setIsDepositOpen] = useState(false);
+  const [isWithdrawalOpen, setIsWithdrawalOpen] = useState(false);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -127,13 +132,23 @@ const Profile = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <GoldButton variant="primary" size="md" className="w-full">
+            <GoldButton 
+              variant="primary" 
+              size="md" 
+              className="w-full"
+              onClick={() => setIsDepositOpen(true)}
+            >
               <span className="flex items-center justify-center gap-2">
                 <ArrowDownCircle className="w-4 h-4" />
                 إيداع
               </span>
             </GoldButton>
-            <GoldButton variant="secondary" size="md" className="w-full">
+            <GoldButton 
+              variant="secondary" 
+              size="md" 
+              className="w-full"
+              onClick={() => setIsWithdrawalOpen(true)}
+            >
               <span className="flex items-center justify-center gap-2">
                 <ArrowUpCircle className="w-4 h-4" />
                 سحب
@@ -239,6 +254,10 @@ const Profile = () => {
           <span className="font-medium">تسجيل الخروج</span>
         </motion.button>
       </section>
+
+      {/* Modals */}
+      <DepositModal isOpen={isDepositOpen} onClose={() => setIsDepositOpen(false)} />
+      <WithdrawalModal isOpen={isWithdrawalOpen} onClose={() => setIsWithdrawalOpen(false)} />
     </PageLayout>
   );
 };

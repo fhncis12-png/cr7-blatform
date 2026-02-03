@@ -14,6 +14,124 @@ export type Database = {
   }
   public: {
     Tables: {
+      crypto_deposits: {
+        Row: {
+          amount_crypto: number | null
+          amount_usd: number
+          confirmed_at: string | null
+          created_at: string
+          currency: string
+          expires_at: string | null
+          id: string
+          invoice_id: string
+          network: string | null
+          order_id: string
+          payment_id: string | null
+          payment_status: string
+          tx_hash: string | null
+          user_id: string
+          wallet_address: string | null
+        }
+        Insert: {
+          amount_crypto?: number | null
+          amount_usd: number
+          confirmed_at?: string | null
+          created_at?: string
+          currency: string
+          expires_at?: string | null
+          id?: string
+          invoice_id: string
+          network?: string | null
+          order_id: string
+          payment_id?: string | null
+          payment_status?: string
+          tx_hash?: string | null
+          user_id: string
+          wallet_address?: string | null
+        }
+        Update: {
+          amount_crypto?: number | null
+          amount_usd?: number
+          confirmed_at?: string | null
+          created_at?: string
+          currency?: string
+          expires_at?: string | null
+          id?: string
+          invoice_id?: string
+          network?: string | null
+          order_id?: string
+          payment_id?: string | null
+          payment_status?: string
+          tx_hash?: string | null
+          user_id?: string
+          wallet_address?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crypto_deposits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crypto_withdrawals: {
+        Row: {
+          amount_crypto: number | null
+          amount_usd: number
+          created_at: string
+          currency: string
+          fee_amount: number | null
+          id: string
+          network: string | null
+          processed_at: string | null
+          status: string
+          tx_hash: string | null
+          user_id: string
+          wallet_address: string
+          withdrawal_id: string | null
+        }
+        Insert: {
+          amount_crypto?: number | null
+          amount_usd: number
+          created_at?: string
+          currency: string
+          fee_amount?: number | null
+          id?: string
+          network?: string | null
+          processed_at?: string | null
+          status?: string
+          tx_hash?: string | null
+          user_id: string
+          wallet_address: string
+          withdrawal_id?: string | null
+        }
+        Update: {
+          amount_crypto?: number | null
+          amount_usd?: number
+          created_at?: string
+          currency?: string
+          fee_amount?: number | null
+          id?: string
+          network?: string | null
+          processed_at?: string | null
+          status?: string
+          tx_hash?: string | null
+          user_id?: string
+          wallet_address?: string
+          withdrawal_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crypto_withdrawals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_claims: {
         Row: {
           amount: number
@@ -82,6 +200,7 @@ export type Database = {
           daily_challenges_limit: number
           email: string
           id: string
+          last_withdrawal_at: string | null
           referral_code: string
           referral_discount: number | null
           referred_by: string | null
@@ -98,6 +217,7 @@ export type Database = {
           daily_challenges_limit?: number
           email: string
           id: string
+          last_withdrawal_at?: string | null
           referral_code: string
           referral_discount?: number | null
           referred_by?: string | null
@@ -114,6 +234,7 @@ export type Database = {
           daily_challenges_limit?: number
           email?: string
           id?: string
+          last_withdrawal_at?: string | null
           referral_code?: string
           referral_discount?: number | null
           referred_by?: string | null
