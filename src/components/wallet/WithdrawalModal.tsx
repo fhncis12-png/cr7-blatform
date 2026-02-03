@@ -88,7 +88,8 @@ export const WithdrawalModal = ({ isOpen, onClose }: WithdrawalModalProps) => {
     return `${hours} ساعة و ${minutes} دقيقة`;
   };
 
-  const popularCurrencies = currencies.filter(c => c.isPopular).slice(0, 8);
+  // All currencies are now popular (only 5 supported)
+  const popularCurrencies = currencies;
 
   if (!isOpen) return null;
 
