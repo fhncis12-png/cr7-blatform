@@ -17,9 +17,10 @@ serve(async (req) => {
     const apiKey = Deno.env.get('NOWPAYMENTS_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
     if (!apiKey) throw new Error('NOWPAYMENTS_API_KEY is not configured');
-    if (!supabaseUrl || !supabaseServiceKey) throw new Error('Supabase configuration missing');
+    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) throw new Error('Supabase configuration missing');
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -29,18 +30,26 @@ serve(async (req) => {
       );
     }
 
+    // Extract the token from the Authorization header
+    const token = authHeader.replace('Bearer ', '');
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const userClient = createClient(supabaseUrl, supabaseServiceKey, {
-      global: { headers: { Authorization: authHeader } }
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } }
     });
 
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    // Verify user using the token
+    const { data: { user }, error: authError } = await userClient.auth.getUser(token);
+    
     if (authError || !user) {
+      console.log('Auth error:', authError?.message || 'No user found');
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid authorization' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`User ${user.id} requesting status`);
 
     const url = new URL(req.url);
     const paymentId = url.searchParams.get('payment_id');
