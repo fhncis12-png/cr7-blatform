@@ -224,10 +224,8 @@ serve(async (req) => {
         const newBalance = Number(profile.balance) + Number(creditAmount);
         console.log(`Current balance: ${profile.balance}, New balance: ${newBalance}`);
 
-        // VIP levels with prices (matching mockData.ts)
+        // VIP levels with prices (matching mockData.ts) - sorted by price ascending
         const vipLevels = [
-          { level: 0, price: 0 },
-          { level: 0.5, price: 0.01 },  // Test tier
           { level: 1, price: 24.10 },
           { level: 2, price: 30.80 },
           { level: 3, price: 58.80 },
@@ -235,21 +233,21 @@ serve(async (req) => {
           { level: 5, price: 1820.00 },
         ];
 
-        // Check if deposit amount matches a VIP level price (with discount applied)
+        // Check if deposit amount qualifies for a VIP upgrade
         const depositAmount = Number(creditAmount);
         const currentVipLevel = Number(profile.vip_level) || 0;
         const referralDiscount = Number(profile.referral_discount) || 0;
 
-        // Find the VIP level that matches this deposit amount
+        // Find the highest VIP level the user qualifies for with this deposit
         let upgradedToLevel: number | null = null;
         for (const vip of vipLevels) {
-          if (vip.level > currentVipLevel && vip.price > 0) {
+          if (vip.level > currentVipLevel) {
             const discountedPrice = Math.max(0, vip.price - referralDiscount);
-            // Check if deposit matches the discounted price (with small tolerance)
-            if (Math.abs(depositAmount - discountedPrice) < 0.10 || depositAmount >= discountedPrice) {
+            // Check if deposit is enough for this level
+            if (depositAmount >= discountedPrice - 0.50) { // 50 cents tolerance
               upgradedToLevel = vip.level;
               console.log(`VIP upgrade: User qualifies for VIP ${vip.level} (price: ${discountedPrice}, deposit: ${depositAmount})`);
-              break;
+              // Continue checking for higher levels
             }
           }
         }
