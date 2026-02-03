@@ -70,8 +70,9 @@ export const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
     onClose();
   };
 
-  const popularCurrencies = currencies.filter(c => c.isPopular);
-  const otherCurrencies = currencies.filter(c => !c.isPopular);
+  // All currencies are now supported (only 5 configured)
+  const popularCurrencies = currencies;
+  const otherCurrencies: typeof currencies = [];
 
   if (!isOpen) return null;
 
