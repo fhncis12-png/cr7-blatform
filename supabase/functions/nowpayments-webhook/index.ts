@@ -226,6 +226,7 @@ serve(async (req) => {
 
         // VIP levels with prices (matching mockData.ts) - sorted by price ascending
         const vipLevels = [
+          { level: 0.5, price: 0.01 },  // Test tier
           { level: 1, price: 24.10 },
           { level: 2, price: 30.80 },
           { level: 3, price: 58.80 },
