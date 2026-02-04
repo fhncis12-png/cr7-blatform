@@ -49,7 +49,6 @@ export const VIPCard = ({ vipLevel, currentLevel, index, referralDiscount = 0 }:
   const effectiveDiscount = referralDiscount > 0 ? referralDiscount : 20;
   const discountedPrice = Math.max(0, originalPrice - effectiveDiscount);
 
-  // Intensity levels for glow/lights based on VIP level
   const levelIntensity: Record<number, { glow: string, border: string, overlay: string }> = {
     0: { glow: 'shadow-[0_0_20px_rgba(255,255,255,0.05)]', border: 'border-white/10', overlay: 'bg-black/40' },
     1: { glow: 'shadow-[0_0_30px_rgba(59,130,246,0.1)]', border: 'border-blue-500/20', overlay: 'bg-blue-950/30' },
@@ -79,20 +78,17 @@ export const VIPCard = ({ vipLevel, currentLevel, index, referralDiscount = 0 }:
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -8, transition: { duration: 0.4, ease: "easeOut" } }}
       onClick={handleAction}
-      className={`relative h-[320px] w-full rounded-[2.5rem] overflow-hidden cursor-pointer border ${intensity.border} ${intensity.glow} transition-all duration-500 group`}
+      className={`relative h-[360px] w-full rounded-[2.5rem] overflow-hidden cursor-pointer border ${intensity.border} ${intensity.glow} transition-all duration-500 group`}
     >
-      {/* Stadium Background Layer */}
       <div 
         className="absolute inset-0 z-0 pointer-events-none bg-cover bg-center transition-transform duration-700 group-hover:scale-105" 
         style={{ backgroundImage: `url(${stadiumBackgrounds[vipLevel.level] || stadiumBackgrounds[0]})` }} 
       />
       
-      {/* Dark Overlay for Contrast */}
       <div className={`absolute inset-0 z-[1] ${intensity.overlay} backdrop-blur-[1px] transition-opacity duration-500 group-hover:opacity-60`} />
-      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black via-black/20 to-transparent" />
+      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black via-black/30 to-transparent" />
 
-      {/* Ronaldo Image - DOMINANT */}
-      <div className="absolute left-0 bottom-0 z-[2] h-full w-[55%] flex items-end justify-center pointer-events-none overflow-visible">
+      <div className="absolute left-0 bottom-0 z-[2] h-full w-[50%] flex items-end justify-center pointer-events-none overflow-visible">
         <motion.img 
           animate={controls}
           src={ronaldoImages[vipLevel.level]} 
@@ -106,23 +102,19 @@ export const VIPCard = ({ vipLevel, currentLevel, index, referralDiscount = 0 }:
         />
       </div>
 
-      {/* Content Side */}
-      <div className="relative z-[3] p-7 ml-auto w-[55%] h-full flex flex-col justify-between text-right">
-        <div>
-          <div className="flex flex-col items-end gap-1 mb-4">
-            <div className={`w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center shadow-2xl group-hover:border-primary/40 transition-all duration-500`}>
-              <Crown className={`w-6 h-6 ${vipLevel.level >= 5 ? 'text-yellow-400' : 'text-zinc-200'} group-hover:scale-110 transition-transform`} />
-            </div>
-            <h3 className="font-display text-4xl font-bold text-white tracking-tight leading-none mt-2">
-              VIP {vipLevel.level}
-            </h3>
-            <p className="text-[10px] text-primary font-black uppercase tracking-[0.2em]">
-              {vipLevel.nameAr}
-            </p>
+      <div className="relative z-[3] p-6 ml-auto w-[60%] h-full flex flex-col justify-between text-right">
+        <div className="flex flex-col items-end gap-1">
+          <div className={`w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center shadow-2xl group-hover:border-primary/40 transition-all duration-500`}>
+            <Crown className={`w-6 h-6 ${vipLevel.level >= 5 ? 'text-yellow-400' : 'text-zinc-200'} group-hover:scale-110 transition-transform`} />
           </div>
+          <h3 className="font-display text-3xl font-bold text-white tracking-tight leading-none mt-2">
+            VIP {vipLevel.level}
+          </h3>
+          <p className="text-[10px] text-primary font-black uppercase tracking-[0.2em]">
+            {vipLevel.nameAr}
+          </p>
 
-          {/* Stats Box */}
-          <div className="space-y-2 mb-4">
+          <div className="space-y-2 mt-4 w-full">
             <div className="bg-black/40 backdrop-blur-md rounded-2xl p-3 border border-white/5 flex items-center justify-end gap-3">
               <span className="text-[10px] text-zinc-400 font-bold uppercase">المهام</span>
               <p className="text-lg font-display font-bold text-white">{vipLevel.dailyChallengeLimit}</p>
@@ -130,33 +122,32 @@ export const VIPCard = ({ vipLevel, currentLevel, index, referralDiscount = 0 }:
             </div>
 
             <div className="bg-black/40 backdrop-blur-md rounded-2xl p-3 border border-white/5 flex items-center justify-end gap-3">
-              <span className="text-[10px] text-zinc-400 font-bold uppercase">الربح اليومي</span>
+              <span className="text-[10px] text-zinc-400 font-bold uppercase">الربح</span>
               <p className="text-lg font-display font-bold text-green-400">+{formatNumber(vipLevel.dailyProfit)}</p>
               <TrendingUp className="w-4 h-4 text-green-400" />
             </div>
           </div>
         </div>
 
-        {/* Premium Action Button */}
-        <div className="mt-auto">
+        <div className="w-full pt-4">
           {!isUnlocked && (
             <GoldButton
               variant="primary"
-              className="w-full h-14 rounded-2xl shadow-[0_10px_30px_-10px_rgba(234,179,8,0.5)] group-hover:shadow-[0_15px_40px_-10px_rgba(234,179,8,0.6)] group-hover:scale-[1.02] transition-all duration-300 relative overflow-hidden"
+              className="w-full h-14 rounded-2xl shadow-[0_10px_30px_-10px_rgba(234,179,8,0.5)] group-hover:shadow-[0_15px_40px_-10px_rgba(234,179,8,0.6)] group-hover:scale-[1.02] transition-all duration-300 relative overflow-hidden px-2"
               onClick={(e) => {
                 e.stopPropagation();
                 handleAction();
               }}
             >
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-sm font-black tracking-widest">فتح الآن — {formatNumber(discountedPrice)} USDT</span>
+              <div className="flex items-center justify-center gap-1 w-full overflow-hidden">
+                <span className="text-[13px] font-black tracking-tighter whitespace-nowrap">فتح الآن — {formatNumber(discountedPrice)} USDT</span>
               </div>
               <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/30 to-transparent group-hover:animate-shimmer" />
             </GoldButton>
           )}
           
           {isUnlocked && (
-            <div className="bg-green-500/20 border border-green-500/30 rounded-2xl h-14 flex items-center justify-center gap-3 backdrop-blur-md">
+            <div className="bg-green-500/20 border border-green-500/30 rounded-2xl h-14 flex items-center justify-center gap-3 backdrop-blur-md w-full">
               <span className="text-green-400 font-black tracking-widest text-sm">تم التفعيل</span>
               <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
                 <Check className="w-4 h-4 text-black stroke-[3px]" />
@@ -166,7 +157,6 @@ export const VIPCard = ({ vipLevel, currentLevel, index, referralDiscount = 0 }:
         </div>
       </div>
 
-      {/* Special Effects for High Levels */}
       {vipLevel.level >= 3 && (
         <div className="absolute inset-0 pointer-events-none z-[4] overflow-hidden opacity-30">
           {[...Array(5)].map((_, i) => (
