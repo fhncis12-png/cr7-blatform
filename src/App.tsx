@@ -12,6 +12,14 @@ import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
+// Admin Pages
+import { AdminLayout } from "./components/layout/AdminLayout";
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminUsers from "./pages/admin/Users";
+import AdminWithdrawals from "./pages/admin/Withdrawals";
+import AdminLogs from "./pages/admin/ActivityLogs";
+import AdminSettings from "./pages/admin/Settings";
+
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -35,11 +43,21 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => (
   <Routes>
     <Route path="/auth" element={<Auth />} />
+    
+    {/* User Routes */}
     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
     <Route path="/challenges" element={<ProtectedRoute><Challenges /></ProtectedRoute>} />
     <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
     <Route path="/vip" element={<ProtectedRoute><VIP /></ProtectedRoute>} />
     <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+
+    {/* Admin Routes */}
+    <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+    <Route path="/admin/users" element={<AdminLayout><AdminUsers /></AdminLayout>} />
+    <Route path="/admin/withdrawals" element={<AdminLayout><AdminWithdrawals /></AdminLayout>} />
+    <Route path="/admin/logs" element={<AdminLayout><AdminLogs /></AdminLayout>} />
+    <Route path="/admin/settings" element={<AdminLayout><AdminSettings /></AdminLayout>} />
+    
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
