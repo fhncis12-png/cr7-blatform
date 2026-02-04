@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, AlertCircle, Clock, Wallet } from 'lucide-react';
 import { GoldButton } from '@/components/ui/GoldButton';
@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { useCryptoPayments } from '@/hooks/useCryptoPayments';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 interface WithdrawalModalProps {
   isOpen: boolean;
@@ -20,28 +19,9 @@ export const WithdrawalModal = ({ isOpen, onClose }: WithdrawalModalProps) => {
   const [amount, setAmount] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
-  const [limits, setLimits] = useState({ min: 10, max: 1000 });
-
-  useEffect(() => {
-    const fetchLimits = async () => {
-      const { data } = await supabase
-        .from('admin_settings')
-        .select('value')
-        .eq('key', 'withdrawal_limits')
-        .single();
-      
-      if (data?.value) {
-        setLimits({
-          min: Number(data.value.min || 10),
-          max: Number(data.value.max || 1000)
-        });
-      }
-    };
-    
-    if (isOpen) {
-      fetchLimits();
-    }
-  }, [isOpen]);
+  
+  // Default limits to avoid database dependency
+  const limits = { min: 10, max: 1000 };
 
   const balance = Number(profile?.balance || 0);
 

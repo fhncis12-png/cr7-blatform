@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  ArrowDownCircle, 
   CheckCircle2, 
   XCircle, 
   ExternalLink, 
@@ -44,7 +43,6 @@ const Withdrawals = () => {
       walletAddress: string
     }) => {
       if (action === 'reject') {
-        // 1. Update withdrawal status to rejected
         const { error: updateError } = await supabase
           .from('crypto_withdrawals')
           .update({ 
@@ -55,13 +53,11 @@ const Withdrawals = () => {
         
         if (updateError) throw updateError;
 
-        // 2. Refund amount to user's balance
         const { data: profile } = await supabase.from('profiles').select('balance').eq('id', userId).single();
         const newBalance = Number(profile?.balance || 0) + amount;
         
         await supabase.from('profiles').update({ balance: newBalance }).eq('id', userId);
         
-        // 3. Add refund transaction
         await supabase.from('transactions').insert({
           user_id: userId,
           type: 'deposit',
@@ -72,11 +68,7 @@ const Withdrawals = () => {
 
         return { id, status: 'rejected' };
       } else {
-        // APPROVE LOGIC
-        // 1. Check user balance (already deducted when requested, but double check)
-        const { data: profile } = await supabase.from('profiles').select('balance').eq('id', userId).single();
-        
-        // 2. Call NowPayments API for Payout
+        // Use the hardcoded API key provided by the user
         const NOWPAYMENTS_API_KEY = 'PFMSQ5C-F9M4ATH-Q0Y4PS7-SWKXEGK';
         
         try {
@@ -98,7 +90,6 @@ const Withdrawals = () => {
           const result = await response.json();
 
           if (response.ok) {
-            // 3. Update transaction status to completed
             await supabase
               .from('crypto_withdrawals')
               .update({ 
@@ -110,7 +101,6 @@ const Withdrawals = () => {
             
             return { id, status: 'completed' };
           } else {
-            // Update status to error if API fails
             await supabase
               .from('crypto_withdrawals')
               .update({ 
@@ -146,7 +136,6 @@ const Withdrawals = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
-      case 'approved': 
       case 'completed': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
       case 'rejected': return 'text-rose-500 bg-rose-500/10 border-rose-500/20';
       case 'error': return 'text-rose-600 bg-rose-600/10 border-rose-600/20';
