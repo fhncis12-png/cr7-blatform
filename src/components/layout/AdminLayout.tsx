@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-import { Navigate, Link, useLocation } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import React, { useState, useEffect } from 'react';
+import { Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Users, 
@@ -10,32 +9,50 @@ import {
   LogOut,
   Menu,
   X,
-  ShieldCheck
+  ShieldCheck,
+  Trophy,
+  Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
-  const { profile, loading, signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
-  if (loading) {
+  useEffect(() => {
+    // Check for admin session in localStorage
+    const session = localStorage.getItem('admin_session');
+    setIsAdmin(session === 'true');
+  }, []);
+
+  if (isAdmin === null) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  if (!profile || profile.role !== 'admin') {
-    return <Navigate to="/" replace />;
+  if (!isAdmin) {
+    return <Navigate to="/admin/login" replace />;
   }
+
+  const handleSignOut = () => {
+    localStorage.removeItem('admin_session');
+    toast.info('تم تسجيل الخروج من لوحة التحكم');
+    navigate('/admin/login');
+  };
 
   const navItems = [
     { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
     { name: 'إدارة المستخدمين', path: '/admin/users', icon: Users },
     { name: 'طلبات السحب', path: '/admin/withdrawals', icon: ArrowDownCircle },
+    { name: 'باقات VIP', path: '/admin/vip', icon: Star },
+    { name: 'التحديات', path: '/admin/challenges', icon: Trophy },
     { name: 'سجل النشاطات', path: '/admin/logs', icon: History },
     { name: 'الإعدادات', path: '/admin/settings', icon: Settings },
   ];
@@ -75,7 +92,7 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
           <Button 
             variant="ghost" 
             className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={signOut}
+            onClick={handleSignOut}
           >
             <LogOut className="w-5 h-5" />
             <span>تسجيل الخروج</span>
@@ -153,7 +170,7 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start gap-3 mt-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  onClick={signOut}
+                  onClick={handleSignOut}
                 >
                   <LogOut className="w-5 h-5" />
                   <span>تسجيل الخروج</span>

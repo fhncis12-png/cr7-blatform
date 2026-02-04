@@ -14,11 +14,15 @@ import NotFound from "./pages/NotFound";
 
 // Admin Pages
 import { AdminLayout } from "./components/layout/AdminLayout";
+import AdminLogin from "./pages/admin/Login";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
 import AdminWithdrawals from "./pages/admin/Withdrawals";
 import AdminLogs from "./pages/admin/ActivityLogs";
 import AdminSettings from "./pages/admin/Settings";
+
+import AdminVIP from "./pages/admin/VIP";
+import AdminChallenges from "./pages/admin/Challenges";
 
 const queryClient = new QueryClient();
 
@@ -52,9 +56,12 @@ const AppRoutes = () => (
     <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
     {/* Admin Routes */}
+    <Route path="/admin/login" element={<AdminLogin />} />
     <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
     <Route path="/admin/users" element={<AdminLayout><AdminUsers /></AdminLayout>} />
     <Route path="/admin/withdrawals" element={<AdminLayout><AdminWithdrawals /></AdminLayout>} />
+    <Route path="/admin/vip" element={<AdminLayout><AdminVIP /></AdminLayout>} />
+    <Route path="/admin/challenges" element={<AdminLayout><AdminChallenges /></AdminLayout>} />
     <Route path="/admin/logs" element={<AdminLayout><AdminLogs /></AdminLayout>} />
     <Route path="/admin/settings" element={<AdminLayout><AdminSettings /></AdminLayout>} />
     
