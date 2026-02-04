@@ -7,7 +7,8 @@ import {
   ExternalLink, 
   Search,
   MoreVertical,
-  Loader2
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,102 +34,36 @@ const Withdrawals = () => {
   });
 
   const processWithdrawalMutation = useMutation({
-    mutationFn: async ({ id, action, userId, amount, currency, network, walletAddress }: { 
-      id: string, 
-      action: 'approve' | 'reject', 
-      userId: string, 
-      amount: number,
-      currency: string,
-      network: string,
-      walletAddress: string
-    }) => {
-      if (action === 'reject') {
-        const { error: updateError } = await supabase
-          .from('crypto_withdrawals')
-          .update({ 
-            status: 'rejected', 
-            processed_at: new Date().toISOString() 
-          })
-          .eq('id', id);
-        
-        if (updateError) throw updateError;
+    mutationFn: async ({ id, action }: { id: string, action: 'approve' | 'reject' }) => {
+      const { data, error } = await supabase.functions.invoke('nowpayments-withdrawal', {
+        body: { withdrawalId: id, action }
+      });
 
-        const { data: profile } = await supabase.from('profiles').select('balance').eq('id', userId).single();
-        const newBalance = Number(profile?.balance || 0) + amount;
-        
-        await supabase.from('profiles').update({ balance: newBalance }).eq('id', userId);
-        
-        await supabase.from('transactions').insert({
-          user_id: userId,
-          type: 'deposit',
-          amount: amount,
-          description: 'استرداد مبلغ سحب مرفوض',
-          status: 'completed'
-        });
-
-        return { id, status: 'rejected' };
-      } else {
-        // Use the hardcoded API key provided by the user
-        const NOWPAYMENTS_API_KEY = 'PFMSQ5C-F9M4ATH-Q0Y4PS7-SWKXEGK';
-        
-        try {
-          const response = await fetch('https://api.nowpayments.io/v1/payouts', {
-            method: 'POST',
-            headers: {
-              'x-api-key': NOWPAYMENTS_API_KEY,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              amount: amount,
-              currency: currency.toLowerCase(),
-              network: network.toLowerCase() || 'trc20',
-              address: walletAddress,
-              auto_confirm: true
-            })
-          });
-
-          const result = await response.json();
-
-          if (response.ok) {
-            await supabase
-              .from('crypto_withdrawals')
-              .update({ 
-                status: 'completed', 
-                processed_at: new Date().toISOString(),
-                withdrawal_id: result.id || null
-              })
-              .eq('id', id);
-            
-            return { id, status: 'completed' };
-          } else {
-            await supabase
-              .from('crypto_withdrawals')
-              .update({ 
-                status: 'error', 
-                processed_at: new Date().toISOString()
-              })
-              .eq('id', id);
-            
-            throw new Error(result.message || 'فشلت عملية الدفع عبر NowPayments');
-          }
-        } catch (apiError: any) {
-          console.error('NowPayments API Error:', apiError);
-          throw apiError;
-        }
+      if (error) throw error;
+      if (data && data.success === false) {
+        throw new Error(data.error || 'حدث خطأ أثناء معالجة العملية');
       }
+      return data;
     },
     onSuccess: (data) => {
-      toast.success(`تم ${data.status === 'completed' ? 'الموافقة على' : 'رفض'} الطلب بنجاح`);
+      toast.success('تمت العملية بنجاح');
       queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
     },
     onError: (error: any) => {
+      console.error('Process error:', error);
       toast.error(error.message || 'حدث خطأ أثناء معالجة الطلب');
+      queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
     }
   });
 
   const filteredWithdrawals = withdrawals?.filter(w => {
-    const matchesSearch = w.profiles?.username?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          w.wallet_address?.toLowerCase().includes(searchTerm.toLowerCase());
+    const username = w.profiles?.username || '';
+    const email = w.profiles?.email || '';
+    const wallet = w.wallet_address || '';
+    
+    const matchesSearch = username.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          wallet.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || w.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -148,7 +83,7 @@ const Withdrawals = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gradient-gold mb-2">طلبات السحب</h2>
-          <p className="text-muted-foreground">إدارة ومعالجة طلبات سحب الأموال</p>
+          <p className="text-muted-foreground">إدارة ومعالجة طلبات سحب الأموال عبر Edge Function</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -239,9 +174,19 @@ const Withdrawals = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`text-[10px] px-2 py-1 rounded-full border ${getStatusColor(w.status)}`}>
-                        {w.status === 'pending' ? 'معلق' : w.status === 'completed' ? 'مكتمل' : w.status === 'rejected' ? 'مرفوض' : w.status === 'error' ? 'خطأ' : w.status}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className={`text-[10px] px-2 py-1 rounded-full border w-fit ${getStatusColor(w.status)}`}>
+                          {w.status === 'pending' ? 'معلق' : w.status === 'completed' ? 'مكتمل' : w.status === 'rejected' ? 'مرفوض' : w.status === 'error' ? 'خطأ' : w.status}
+                        </span>
+                        {w.status === 'error' && w.withdrawal_id?.startsWith('ERROR:') && (
+                          <div className="flex items-center gap-1 text-[9px] text-rose-400 max-w-[150px]">
+                            <AlertCircle className="w-3 h-3 shrink-0" />
+                            <span className="truncate" title={w.withdrawal_id.replace('ERROR: ', '')}>
+                              {w.withdrawal_id.replace('ERROR: ', '')}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-xs text-muted-foreground">
                       {new Date(w.created_at).toLocaleDateString('ar-EG')}
@@ -254,16 +199,9 @@ const Withdrawals = () => {
                               size="sm" 
                               variant="outline" 
                               className="h-8 w-8 p-0 border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/10"
-                              onClick={() => processWithdrawalMutation.mutate({ 
-                                id: w.id, 
-                                action: 'approve', 
-                                userId: w.user_id, 
-                                amount: w.amount_usd,
-                                currency: w.currency,
-                                network: w.network || 'trc20',
-                                walletAddress: w.wallet_address
-                              })}
+                              onClick={() => processWithdrawalMutation.mutate({ id: w.id, action: 'approve' })}
                               disabled={processWithdrawalMutation.isPending}
+                              title="موافقة وإرسال الدفع"
                             >
                               {processWithdrawalMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                             </Button>
@@ -271,16 +209,9 @@ const Withdrawals = () => {
                               size="sm" 
                               variant="outline" 
                               className="h-8 w-8 p-0 border-rose-500/50 text-rose-500 hover:bg-rose-500/10"
-                              onClick={() => processWithdrawalMutation.mutate({ 
-                                id: w.id, 
-                                action: 'reject', 
-                                userId: w.user_id, 
-                                amount: w.amount_usd,
-                                currency: w.currency,
-                                network: w.network || 'trc20',
-                                walletAddress: w.wallet_address
-                              })}
+                              onClick={() => processWithdrawalMutation.mutate({ id: w.id, action: 'reject' })}
                               disabled={processWithdrawalMutation.isPending}
+                              title="رفض واسترداد الرصيد"
                             >
                               {processWithdrawalMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                             </Button>

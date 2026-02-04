@@ -1,26 +1,106 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Key, 
   ShieldCheck, 
   Bell, 
   Save,
-  ArrowDownCircle
+  ArrowDownCircle,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
 
 const Settings = () => {
-  // Use local state instead of Supabase table to avoid "table not found" error
-  const [apiKey] = useState('PFMSQ5C-F9M4ATH-Q0Y4PS7-SWKXEGK');
-  const [minWithdrawal] = useState('10');
-  const [maxWithdrawal] = useState('1000');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [minWithdrawal, setMinWithdrawal] = useState('10');
+  const [maxWithdrawal, setMaxWithdrawal] = useState('1000');
 
-  const handleSave = () => {
-    toast.success('تم حفظ الإعدادات في ذاكرة النظام المؤقتة');
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('*');
+      
+      if (error) throw error;
+
+      if (data) {
+        const limits = data.find(s => s.key === 'withdrawal_limits')?.value as any;
+        const api = data.find(s => s.key === 'nowpayments_api_key')?.value as any;
+
+        if (limits) {
+          setMinWithdrawal(limits.min || '10');
+          setMaxWithdrawal(limits.max || '1000');
+        }
+        if (api) {
+          setApiKey(api.value || '');
+        }
+      }
+    } catch (error: any) {
+      console.error('Error fetching settings:', error);
+      toast.error('فشل تحميل الإعدادات');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSaveLimits = async () => {
+    try {
+      setSaving(true);
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert({
+          key: 'withdrawal_limits',
+          value: { min: minWithdrawal, max: maxWithdrawal },
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+      toast.success('تم حفظ حدود السحب بنجاح');
+    } catch (error: any) {
+      toast.error('فشل حفظ حدود السحب');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveApiKey = async () => {
+    try {
+      setSaving(true);
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert({
+          key: 'nowpayments_api_key',
+          value: { value: apiKey },
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+      toast.success('تم حفظ مفتاح API بنجاح');
+    } catch (error: any) {
+      toast.error('فشل حفظ مفتاح API');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[400px] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -50,8 +130,8 @@ const Settings = () => {
                 <Input 
                   type="number" 
                   value={minWithdrawal}
-                  readOnly
-                  className="glass-card opacity-70"
+                  onChange={(e) => setMinWithdrawal(e.target.value)}
+                  className="glass-card"
                 />
               </div>
               <div className="space-y-2">
@@ -59,13 +139,13 @@ const Settings = () => {
                 <Input 
                   type="number" 
                   value={maxWithdrawal}
-                  readOnly
-                  className="glass-card opacity-70"
+                  onChange={(e) => setMaxWithdrawal(e.target.value)}
+                  className="glass-card"
                 />
               </div>
             </div>
-            <Button className="w-full" onClick={handleSave}>
-              <Save className="w-4 h-4 mr-2" />
+            <Button className="w-full" onClick={handleSaveLimits} disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
               حفظ حدود السحب
             </Button>
           </div>
@@ -92,11 +172,11 @@ const Settings = () => {
                 <Input 
                   type="password" 
                   value={apiKey}
-                  readOnly
-                  className="glass-card opacity-70"
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="glass-card"
                 />
-                <Button onClick={handleSave}>
-                  <Save className="w-4 h-4" />
+                <Button onClick={handleSaveApiKey} disabled={saving}>
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground">يستخدم هذا المفتاح لمعالجة عمليات السحب التلقائية</p>
@@ -124,7 +204,7 @@ const Settings = () => {
                 <span className="text-sm font-medium">تفعيل IP Whitelist</span>
                 <p className="text-[10px] text-muted-foreground">السماح بالدخول من عناوين IP محددة فقط</p>
               </div>
-              <Switch checked={false} onCheckedChange={handleSave} />
+              <Switch checked={false} disabled />
             </div>
 
             <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-border/30">
@@ -132,7 +212,7 @@ const Settings = () => {
                 <span className="text-sm font-medium">تفعيل 2FA للمدراء</span>
                 <p className="text-[10px] text-muted-foreground">فرض المصادقة الثنائية لجميع حسابات الإدارة</p>
               </div>
-              <Switch checked={false} onCheckedChange={handleSave} />
+              <Switch checked={false} disabled />
             </div>
           </div>
         </motion.div>
@@ -157,7 +237,7 @@ const Settings = () => {
                 <span className="text-sm font-medium">إشعارات البريد</span>
                 <p className="text-[10px] text-muted-foreground">إرسال بريد عند وصول طلب سحب جديد</p>
               </div>
-              <Switch checked={true} onCheckedChange={handleSave} />
+              <Switch checked={true} disabled />
             </div>
           </div>
         </motion.div>
