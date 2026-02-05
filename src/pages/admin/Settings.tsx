@@ -70,11 +70,17 @@ const Settings = () => {
     try {
       setSaving(true);
       
-      // Supabase client handles the session automatically
       const { data: { session: currentSession } } = await supabase.auth.getSession();
 
+      if (!currentSession?.access_token) {
+        throw new Error('لم يتم العثور على جلسة نشطة. يرجى تسجيل الدخول مجدداً.');
+      }
+
       const { data, error } = await supabase.functions.invoke('update-admin-settings', {
-        body: { key, value }
+        body: { key, value },
+        headers: {
+          Authorization: `Bearer ${currentSession.access_token}`
+        }
       });
 
       if (error) throw error;

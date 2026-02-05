@@ -71,15 +71,17 @@ const Withdrawals = () => {
 
   const processWithdrawalMutation = useMutation({
     mutationFn: async ({ id, action }: { id: string; action: 'approve' | 'reject' | 'retry' }) => {
-      // Supabase client handles the session automatically
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       
-      // We don't throw error here if session is missing, 
-      // the Edge Function will return 401 if it's required.
-      // This avoids false positives when the session is still loading.
+      if (!currentSession?.access_token) {
+        throw new Error('لم يتم العثور على جلسة نشطة. يرجى تسجيل الدخول مجدداً.');
+      }
 
       const { data, error } = await supabase.functions.invoke('nowpayments-withdrawal', {
-        body: { withdrawalId: id, action }
+        body: { withdrawalId: id, action },
+        headers: {
+          Authorization: `Bearer ${currentSession.access_token}`
+        }
       });
 
       if (error) throw error;
@@ -101,11 +103,17 @@ const Withdrawals = () => {
 
   const massPayoutMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      // Supabase client handles the session automatically
       const { data: { session: currentSession } } = await supabase.auth.getSession();
 
+      if (!currentSession?.access_token) {
+        throw new Error('لم يتم العثور على جلسة نشطة. يرجى تسجيل الدخول مجدداً.');
+      }
+
       const { data, error } = await supabase.functions.invoke('nowpayments-withdrawal', {
-        body: { action: 'mass_payout', withdrawalIds: ids }
+        body: { action: 'mass_payout', withdrawalIds: ids },
+        headers: {
+          Authorization: `Bearer ${currentSession.access_token}`
+        }
       });
 
       if (error) throw error;

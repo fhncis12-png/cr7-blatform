@@ -31,9 +31,12 @@ serve(async (req) => {
 
     // Verify Admin JWT
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader || authHeader === 'Bearer undefined' || authHeader === 'Bearer null') {
-      console.error('Authorization header is empty or undefined');
-      return new Response(JSON.stringify({ success: false, error: 'Authorization header is empty (Bearer JWTtoken is required)' }), { status: 401, headers: corsHeaders });
+    if (!authHeader || authHeader === 'Bearer undefined' || authHeader === 'Bearer null' || authHeader === 'Bearer') {
+      console.error('Missing or invalid Authorization header:', authHeader);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Authorization header is missing or invalid. Received: ' + (authHeader || 'empty')
+      }), { status: 401, headers: corsHeaders });
     }
 
     const token = authHeader.replace('Bearer ', '');
