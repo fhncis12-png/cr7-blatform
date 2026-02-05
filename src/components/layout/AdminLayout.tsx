@@ -28,11 +28,17 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const localSession = localStorage.getItem('admin_session');
-      
-      // Allow access if either Supabase session exists OR localSession is true (for dev mode)
       setIsAdmin(!!session || localSession === 'true');
     };
+
     checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const localSession = localStorage.getItem('admin_session');
+      setIsAdmin(!!session || localSession === 'true');
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   if (isAdmin === null) {

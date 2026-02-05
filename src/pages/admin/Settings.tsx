@@ -70,16 +70,8 @@ const Settings = () => {
     try {
       setSaving(true);
       
-      // Get current session if state is not yet updated
-      let currentSession = session;
-      if (!currentSession) {
-        const { data } = await supabase.auth.getSession();
-        currentSession = data.session;
-      }
-
-      if (!currentSession) {
-        throw new Error('لم يتم العثور على جلسة نشطة. يرجى تسجيل الدخول مرة أخرى.');
-      }
+      // Supabase client handles the session automatically
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
 
       const { data, error } = await supabase.functions.invoke('update-admin-settings', {
         body: { key, value }
