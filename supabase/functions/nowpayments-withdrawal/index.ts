@@ -31,7 +31,7 @@ serve(async (req) => {
 
     // Verify Admin JWT
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader || authHeader === 'Bearer undefined') {
+    if (!authHeader || authHeader === 'Bearer undefined' || authHeader === 'Bearer null') {
       console.error('Authorization header is empty or undefined');
       return new Response(JSON.stringify({ success: false, error: 'Authorization header is empty (Bearer JWTtoken is required)' }), { status: 401, headers: corsHeaders });
     }

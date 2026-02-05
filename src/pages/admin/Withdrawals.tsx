@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -83,10 +83,7 @@ const Withdrawals = () => {
       }
 
       const { data, error } = await supabase.functions.invoke('nowpayments-withdrawal', {
-        body: { withdrawalId: id, action },
-        headers: {
-          Authorization: `Bearer ${currentSession.access_token}`
-        }
+        body: { withdrawalId: id, action }
       });
 
       if (error) throw error;
@@ -119,10 +116,7 @@ const Withdrawals = () => {
       }
 
       const { data, error } = await supabase.functions.invoke('nowpayments-withdrawal', {
-        body: { action: 'mass_payout', withdrawalIds: ids },
-        headers: {
-          Authorization: `Bearer ${currentSession.access_token}`
-        }
+        body: { action: 'mass_payout', withdrawalIds: ids }
       });
 
       if (error) throw error;

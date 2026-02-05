@@ -53,6 +53,7 @@ const Settings = () => {
         if (threshold) {
           setAutoPayoutThreshold(String(threshold.amount || '10'));
         }
+        const security = data.find(s => s.key === 'security_settings')?.value as { auto_withdrawal?: boolean } | undefined;
         if (security) {
           setAutoWithdrawal(security.auto_withdrawal || false);
         }
@@ -81,10 +82,7 @@ const Settings = () => {
       }
 
       const { data, error } = await supabase.functions.invoke('update-admin-settings', {
-        body: { key, value },
-        headers: {
-          Authorization: `Bearer ${currentSession.access_token}`
-        }
+        body: { key, value }
       });
 
       if (error) throw error;
