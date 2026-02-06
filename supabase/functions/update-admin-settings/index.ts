@@ -14,13 +14,14 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error('Supabase configuration missing');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    // Create service client for database operations
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify Admin JWT
     const authHeader = req.headers.get('Authorization');
@@ -42,17 +43,61 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await userClient.auth.getUser();
 
     if (authError || !user) {
-      return new Response(JSON.stringify({ success: false, error: 'Invalid Token: ' + (authError?.message || 'User not found') }), { status: 401, headers: corsHeaders });
+      console.error('Auth error:', authError);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Invalid Token: ' + (authError?.message || 'User not found') 
+      }), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    // Check if user has admin role using service client
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (roleError) {
+      console.error('Role check error:', roleError);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Error checking admin role' 
+      }), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    if (!roleData) {
+      console.error('User is not admin:', user.id);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Access denied. Admin role required.' 
+      }), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     const body = await req.json();
     const { key, value } = body;
 
     if (!key || value === undefined) {
-      return new Response(JSON.stringify({ success: false, error: 'Key and Value are required' }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Key and Value are required' 
+      }), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
-    const { error } = await supabase
+    // Use service client to update settings (bypasses RLS)
+    const { error } = await supabaseAdmin
       .from('admin_settings')
       .upsert({
         key,
@@ -60,15 +105,32 @@ serve(async (req) => {
         updated_at: new Date().toISOString()
       }, { onConflict: 'key' });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Database error:', error);
+      throw error;
+    }
 
-    return new Response(JSON.stringify({ success: true, message: 'Settings updated successfully' }), {
+    // Log the action
+    await supabaseAdmin.from('activity_logs').insert({
+      admin_id: user.id,
+      action: 'SETTINGS_UPDATE',
+      details: { key, value }
+    });
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: 'Settings updated successfully' 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
-      status: 200, // Returning 200 to handle error gracefully in frontend if needed
+    console.error('Error:', error);
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: error.message 
+    }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

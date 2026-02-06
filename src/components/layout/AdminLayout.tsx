@@ -11,7 +11,8 @@ import {
   X,
   ShieldCheck,
   Trophy,
-  Star
+  Star,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -21,30 +22,76 @@ import { supabase } from '@/integrations/supabase/client';
 export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const localSession = localStorage.getItem('admin_session');
-      setIsAdmin(!!session || localSession === 'true');
+    const checkAdminAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.user) {
+          setIsAdmin(false);
+          setLoading(false);
+          return;
+        }
+
+        // Check if user has admin role
+        const { data: roleData, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
+
+        if (error) {
+          console.error('Role check error:', error);
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(!!roleData);
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        setIsAdmin(false);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    checkAuth();
+    checkAdminAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const localSession = localStorage.getItem('admin_session');
-      setIsAdmin(!!session || localSession === 'true');
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setIsAdmin(false);
+        return;
+      }
+      
+      if (session?.user) {
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
+        
+        setIsAdmin(!!roleData);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  if (isAdmin === null) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground text-sm">جاري التحقق من الصلاحيات...</p>
+        </div>
       </div>
     );
   }
@@ -55,7 +102,6 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    localStorage.removeItem('admin_session');
     toast.info('تم تسجيل الخروج من لوحة التحكم');
     navigate('/admin/login');
   };

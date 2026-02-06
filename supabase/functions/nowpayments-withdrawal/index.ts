@@ -16,6 +16,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const nowpaymentsApiKey = Deno.env.get('NOWPAYMENTS_API_KEY');
 
     if (!supabaseUrl || !supabaseServiceKey) {
@@ -26,8 +27,8 @@ serve(async (req) => {
       throw new Error('NOWPAYMENTS_API_KEY not configured');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    // Create service client for database operations (bypasses RLS)
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify Admin JWT
     const authHeader = req.headers.get('Authorization');
@@ -50,18 +51,50 @@ serve(async (req) => {
 
     if (authError || !user) {
       console.error('Auth error:', authError?.message);
-      return new Response(JSON.stringify({ success: false, error: 'Invalid Token: ' + (authError?.message || 'User not found') }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Invalid Token: ' + (authError?.message || 'User not found') 
+      }), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
-    // Check if user is admin (Assuming role is in user_metadata or a profiles table)
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    // For now, we'll proceed, but in production, we'd check if (profile?.role !== 'admin')
+    // Check if user has admin role using service client
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (roleError) {
+      console.error('Role check error:', roleError);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Error checking admin role' 
+      }), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    if (!roleData) {
+      console.error('User is not admin:', user.id);
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Access denied. Admin role required.' 
+      }), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
 
     const body = await req.json();
-    const { action, withdrawalId, withdrawalIds, amount } = body;
+    const { action, withdrawalId, withdrawalIds } = body;
 
     const logActivity = async (actionType: string, targetId: string | null, details: object) => {
-      await supabase.from('activity_logs').insert({
+      await supabaseAdmin.from('activity_logs').insert({
         admin_id: user.id,
         action: actionType,
         target_id: targetId,
@@ -71,11 +104,16 @@ serve(async (req) => {
 
     const processPayout = async (withdrawal: any) => {
       try {
+        console.log('Processing payout for withdrawal:', withdrawal.id);
+        console.log('Payout details:', {
+          address: withdrawal.wallet_address,
+          currency: withdrawal.currency,
+          amount: withdrawal.amount_crypto || withdrawal.amount_usd
+        });
+
         const response = await fetch(`${NOWPAYMENTS_API_URL}/payout`, {
           method: 'POST',
           headers: {
-            // NOWPayments accepts API key auth; some payout routes require Bearer token too.
-            // Sending both makes the integration resilient.
             'x-api-key': nowpaymentsApiKey,
             'Authorization': `Bearer ${nowpaymentsApiKey}`,
             'Content-Type': 'application/json',
@@ -90,68 +128,271 @@ serve(async (req) => {
         });
 
         const result = await response.json();
-        if (response.ok) return { success: true, data: result };
-        return { success: false, error: result.message || 'NOWPayments API Error' };
+        console.log('NOWPayments response:', result);
+
+        if (response.ok && result.id) {
+          return { success: true, data: result };
+        }
+        return { success: false, error: result.message || result.error || 'NOWPayments API Error' };
       } catch (error) {
+        console.error('Payout error:', error);
         return { success: false, error: error.message };
       }
     };
 
+    // Action: Approve single withdrawal
     if (action === 'approve' && withdrawalId) {
-      const { data: w } = await supabase.from('crypto_withdrawals').select('*').eq('id', withdrawalId).single();
-      if (!w || w.status !== 'pending') return new Response(JSON.stringify({ success: false, error: 'Invalid Withdrawal' }), { headers: corsHeaders });
+      const { data: w, error: fetchError } = await supabaseAdmin
+        .from('crypto_withdrawals')
+        .select('*')
+        .eq('id', withdrawalId)
+        .single();
+
+      if (fetchError || !w) {
+        console.error('Withdrawal fetch error:', fetchError);
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'Withdrawal not found' 
+        }), { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+
+      if (w.status !== 'pending') {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'Withdrawal is not pending' 
+        }), { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
 
       const res = await processPayout(w);
+      
       if (res.success) {
-        await supabase.from('crypto_withdrawals').update({ 
+        await supabaseAdmin.from('crypto_withdrawals').update({ 
           status: 'completed', 
           processed_at: new Date().toISOString(),
-          tx_hash: res.data.hash,
-          withdrawal_id: res.data.id?.toString()
+          tx_hash: res.data.hash || null,
+          withdrawal_id: res.data.id?.toString() || null
         }).eq('id', withdrawalId);
         
-        await logActivity('APPROVE_WITHDRAWAL', withdrawalId, { amount: w.amount_usd });
-        return new Response(JSON.stringify({ success: true, message: 'Approved & Paid' }), { headers: corsHeaders });
+        await logActivity('APPROVE_WITHDRAWAL', withdrawalId, { 
+          amount: w.amount_usd,
+          currency: w.currency,
+          wallet: w.wallet_address,
+          payout_id: res.data.id
+        });
+
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: 'تم الموافقة والدفع بنجاح' 
+        }), { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
       } else {
-        await supabase.from('crypto_withdrawals').update({ status: 'error', withdrawal_id: res.error }).eq('id', withdrawalId);
-        return new Response(JSON.stringify({ success: false, error: res.error }), { headers: corsHeaders });
+        // Mark as error but don't complete
+        await supabaseAdmin.from('crypto_withdrawals').update({ 
+          status: 'error', 
+          withdrawal_id: `ERROR: ${res.error}` 
+        }).eq('id', withdrawalId);
+
+        await logActivity('WITHDRAWAL_ERROR', withdrawalId, { 
+          amount: w.amount_usd,
+          error: res.error
+        });
+
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: res.error 
+        }), { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
       }
     }
 
+    // Action: Reject withdrawal
     if (action === 'reject' && withdrawalId) {
-      const { data: w } = await supabase.from('crypto_withdrawals').select('*').eq('id', withdrawalId).single();
-      if (!w || w.status !== 'pending') return new Response(JSON.stringify({ success: false, error: 'Invalid Withdrawal' }), { headers: corsHeaders });
+      const { data: w, error: fetchError } = await supabaseAdmin
+        .from('crypto_withdrawals')
+        .select('*')
+        .eq('id', withdrawalId)
+        .single();
+
+      if (fetchError || !w) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'Withdrawal not found' 
+        }), { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+
+      if (w.status !== 'pending' && w.status !== 'error') {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'Cannot reject this withdrawal' 
+        }), { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
 
       // Refund balance
-      const { data: profile } = await supabase.from('profiles').select('balance').eq('id', w.user_id).single();
-      await supabase.from('profiles').update({ balance: (profile?.balance || 0) + w.amount_usd }).eq('id', w.user_id);
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('balance')
+        .eq('id', w.user_id)
+        .single();
+
+      await supabaseAdmin.from('profiles').update({ 
+        balance: (profile?.balance || 0) + w.amount_usd 
+      }).eq('id', w.user_id);
       
-      await supabase.from('crypto_withdrawals').update({ status: 'rejected', processed_at: new Date().toISOString() }).eq('id', withdrawalId);
-      await logActivity('REJECT_WITHDRAWAL', withdrawalId, { amount: w.amount_usd });
+      await supabaseAdmin.from('crypto_withdrawals').update({ 
+        status: 'rejected', 
+        processed_at: new Date().toISOString() 
+      }).eq('id', withdrawalId);
+
+      await logActivity('REJECT_WITHDRAWAL', withdrawalId, { 
+        amount: w.amount_usd,
+        refunded: true
+      });
       
-      return new Response(JSON.stringify({ success: true, message: 'Rejected & Refunded' }), { headers: corsHeaders });
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'تم الرفض وإعادة الرصيد بنجاح' 
+      }), { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
-    if (action === 'mass_payout' && withdrawalIds) {
+    // Action: Retry failed withdrawal
+    if (action === 'retry' && withdrawalId) {
+      const { data: w } = await supabaseAdmin
+        .from('crypto_withdrawals')
+        .select('*')
+        .eq('id', withdrawalId)
+        .eq('status', 'error')
+        .single();
+
+      if (!w) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'No failed withdrawal found' 
+        }), { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+
+      const res = await processPayout(w);
+      
+      if (res.success) {
+        await supabaseAdmin.from('crypto_withdrawals').update({ 
+          status: 'completed', 
+          processed_at: new Date().toISOString(),
+          tx_hash: res.data.hash || null,
+          withdrawal_id: res.data.id?.toString() || null
+        }).eq('id', withdrawalId);
+        
+        await logActivity('RETRY_WITHDRAWAL_SUCCESS', withdrawalId, { amount: w.amount_usd });
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: 'تمت إعادة المحاولة بنجاح' 
+        }), { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      } else {
+        await logActivity('RETRY_WITHDRAWAL_FAILED', withdrawalId, { error: res.error });
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: res.error 
+        }), { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+    }
+
+    // Action: Mass payout
+    if (action === 'mass_payout' && withdrawalIds && Array.isArray(withdrawalIds)) {
       const results = [];
+      let successCount = 0;
+      let failCount = 0;
+
       for (const id of withdrawalIds) {
-        const { data: w } = await supabase.from('crypto_withdrawals').select('*').eq('id', id).eq('status', 'pending').single();
+        const { data: w } = await supabaseAdmin
+          .from('crypto_withdrawals')
+          .select('*')
+          .eq('id', id)
+          .eq('status', 'pending')
+          .single();
+
         if (w) {
           const res = await processPayout(w);
+          
           if (res.success) {
-            await supabase.from('crypto_withdrawals').update({ status: 'completed', tx_hash: res.data.hash }).eq('id', id);
+            await supabaseAdmin.from('crypto_withdrawals').update({ 
+              status: 'completed', 
+              processed_at: new Date().toISOString(),
+              tx_hash: res.data.hash || null,
+              withdrawal_id: res.data.id?.toString() || null
+            }).eq('id', id);
+            
             results.push({ id, success: true });
+            successCount++;
           } else {
+            await supabaseAdmin.from('crypto_withdrawals').update({ 
+              status: 'error', 
+              withdrawal_id: `ERROR: ${res.error}` 
+            }).eq('id', id);
+            
             results.push({ id, success: false, error: res.error });
+            failCount++;
           }
         }
       }
-      return new Response(JSON.stringify({ success: true, results }), { headers: corsHeaders });
+
+      await logActivity('MASS_PAYOUT', null, { 
+        total: withdrawalIds.length,
+        success: successCount,
+        failed: failCount
+      });
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: `تم معالجة ${successCount} طلب بنجاح، ${failCount} فشل`,
+        results 
+      }), { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
-    return new Response(JSON.stringify({ success: false, error: 'Action not found' }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: 'Invalid action' 
+    }), { 
+      status: 200, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
 
   } catch (error) {
-    return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers: corsHeaders });
+    console.error('Unexpected error:', error);
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: error.message 
+    }), { 
+      status: 200, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   }
 });
