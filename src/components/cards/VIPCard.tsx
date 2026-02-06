@@ -130,6 +130,14 @@ export const VIPCard = ({ vipLevel, currentLevel, index }: VIPCardProps) => {
               <Target className="w-4 h-4 text-yellow-500" />
             </div>
 
+            <div className="bg-black/60 backdrop-blur-md rounded-xl p-2 border border-white/10 flex items-center justify-end gap-2 group-hover:border-orange-500/30 transition-colors">
+              <div className="text-right">
+                <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">مصلحة بسيطة</p>
+                <p className="text-sm font-display font-bold text-orange-400">+{formatNumber(vipLevel.simpleInterest)}</p>
+              </div>
+              <TrendingUp className="w-4 h-4 text-orange-400" />
+            </div>
+
             <div className="bg-black/60 backdrop-blur-md rounded-xl p-2 border border-white/10 flex items-center justify-end gap-2 group-hover:border-green-500/30 transition-colors">
               <div className="text-right">
                 <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">الربح اليومي</p>
