@@ -134,11 +134,12 @@ serve(async (req) => {
           return { success: true, data: result };
         }
         return { success: false, error: result.message || result.error || 'NOWPayments API Error' };
-      } catch (error) {
-        console.error('Payout error:', error);
-        return { success: false, error: error.message };
-      }
-    };
+    } catch (error: unknown) {
+      console.error('Payout error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown payout error';
+      return { success: false, error: errorMessage };
+    }
+  };
 
     // Action: Approve single withdrawal
     if (action === 'approve' && withdrawalId) {
@@ -385,11 +386,12 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Unexpected error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(JSON.stringify({ 
       success: false, 
-      error: error.message 
+      error: errorMessage 
     }), { 
       status: 200, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
