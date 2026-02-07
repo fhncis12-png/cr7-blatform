@@ -1,1 +1,22 @@
-project_id = "pcqwowsydrwqgihbsent"
+project_id = "cvrdbflqzuacvlghiifp"
+
+[functions.nowpayments-currencies]
+verify_jwt = false
+
+[functions.nowpayments-deposit]
+verify_jwt = false
+
+[functions.nowpayments-withdrawal]
+verify_jwt = false
+
+[functions.nowpayments-webhook]
+verify_jwt = false
+
+[functions.nowpayments-status]
+verify_jwt = false
+
+[functions.create-withdrawal]
+verify_jwt = false
+
+[functions.update-admin-settings]
+verify_jwt = false

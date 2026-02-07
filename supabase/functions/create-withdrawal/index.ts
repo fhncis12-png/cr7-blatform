@@ -22,125 +22,144 @@ serve(async (req) => {
       throw new Error('Supabase configuration missing');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get authenticated user
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Authorization required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!nowpaymentsApiKey) {
+      throw new Error('NOWPAYMENTS_API_KEY not configured');
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify user JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Authorization required'
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
     if (authError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Invalid session' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid token'
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { amount, currency, walletAddress, network } = await req.json();
+    const body = await req.json();
+    const { amount, currency, walletAddress, network } = body;
 
-    // Validation
+    // Validate input
     if (!amount || !currency || !walletAddress) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Missing required fields' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'المبلغ والعملة وعنوان المحفظة مطلوبة'
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Validate wallet address
+    if (walletAddress.length < 20 || walletAddress.length > 100) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'عنوان المحفظة غير صحيح'
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Get settings
+    const { data: settingsData } = await supabaseAdmin
+      .from('admin_settings')
+      .select('key, value');
+
+    const settings: Record<string, number | boolean | string> = {};
+    settingsData?.forEach((s: { key: string; value: number | boolean | string }) => {
+      settings[s.key] = s.value;
+    });
+
+    const minWithdrawal = Number(settings.min_withdrawal) || 5;
+    const maxWithdrawal = Number(settings.max_withdrawal) || 1000;
+    const autoPayoutThreshold = Number(settings.auto_payout_threshold) || 10;
+    const cooldownHours = Number(settings.withdrawal_cooldown_hours) || 24;
+    const withdrawalsEnabled = settings.withdrawals_enabled !== false && settings.withdrawals_enabled !== 'false';
+
+    if (!withdrawalsEnabled) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'السحب معطل حالياً'
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (amount < minWithdrawal) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: `الحد الأدنى للسحب هو $${minWithdrawal}`
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (amount > maxWithdrawal) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: `الحد الأقصى للسحب هو $${maxWithdrawal}`
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // Get user profile
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('*')
+      .select('balance, last_withdrawal_at')
       .eq('id', user.id)
       .single();
 
     if (profileError || !profile) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Profile not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Get withdrawal limits
-    const { data: limitsData } = await supabase
-      .from('admin_settings')
-      .select('value')
-      .eq('key', 'withdrawal_limits')
-      .single();
-
-    const limits = limitsData?.value as { min?: number; max?: number } || { min: 10, max: 1000 };
-    const minAmount = Number(limits.min || 10);
-    const maxAmount = Number(limits.max || 1000);
-
-    // Validate amount
-    if (amount < minAmount) {
-      return new Response(
-        JSON.stringify({ success: false, error: `الحد الأدنى للسحب هو $${minAmount}` }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (amount > maxAmount) {
-      return new Response(
-        JSON.stringify({ success: false, error: `الحد الأقصى للسحب هو $${maxAmount}` }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'لم يتم العثور على الملف الشخصي'
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // Check balance
     if (Number(profile.balance) < amount) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'رصيدك غير كافٍ' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'رصيد غير كافٍ'
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Check 24-hour withdrawal limit
+    // Check cooldown
     if (profile.last_withdrawal_at) {
       const lastWithdrawal = new Date(profile.last_withdrawal_at);
-      const now = new Date();
-      const hoursDiff = (now.getTime() - lastWithdrawal.getTime()) / (1000 * 60 * 60);
+      const cooldownEnd = new Date(lastWithdrawal.getTime() + cooldownHours * 60 * 60 * 1000);
       
-      if (hoursDiff < 24) {
-        const remaining = 24 - hoursDiff;
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: `يجب الانتظار ${Math.ceil(remaining)} ساعة قبل السحب مرة أخرى` 
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (new Date() < cooldownEnd) {
+        const remainingHours = Math.ceil((cooldownEnd.getTime() - Date.now()) / (1000 * 60 * 60));
+        return new Response(JSON.stringify({
+          success: false,
+          error: `يجب الانتظار ${remainingHours} ساعة قبل السحب التالي`
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 
-    // Validate wallet address (basic validation)
-    if (walletAddress.length < 20 || walletAddress.length > 100) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'عنوان المحفظة غير صحيح' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Check for pending withdrawals
+    const { data: pendingWithdrawals } = await supabaseAdmin
+      .from('crypto_withdrawals')
+      .select('id')
+      .eq('user_id', user.id)
+      .in('status', ['pending', 'processing']);
+
+    if (pendingWithdrawals && pendingWithdrawals.length > 0) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'لديك طلب سحب معلق بالفعل'
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Get auto payout threshold
-    const { data: thresholdData } = await supabase
-      .from('admin_settings')
-      .select('value')
-      .eq('key', 'auto_payout_threshold')
-      .single();
-
-    const autoPayoutThreshold = Number((thresholdData?.value as any)?.amount || 10);
+    // Determine payout type
     const isAutoPayout = amount <= autoPayoutThreshold;
+    const payoutType = isAutoPayout ? 'auto' : 'manual';
 
-    // Deduct from user balance
+    // Deduct balance
     const newBalance = Number(profile.balance) - amount;
-    await supabase
+    const { error: balanceError } = await supabaseAdmin
       .from('profiles')
       .update({ 
         balance: newBalance,
@@ -148,8 +167,16 @@ serve(async (req) => {
       })
       .eq('id', user.id);
 
+    if (balanceError) {
+      console.error('Balance deduction error:', balanceError);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'فشل في خصم الرصيد'
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     // Create withdrawal record
-    const { data: withdrawal, error: insertError } = await supabase
+    const { data: withdrawal, error: withdrawalError } = await supabaseAdmin
       .from('crypto_withdrawals')
       .insert({
         user_id: user.id,
@@ -158,23 +185,27 @@ serve(async (req) => {
         network: network || 'TRC20',
         wallet_address: walletAddress,
         status: 'pending',
-        payout_type: isAutoPayout ? 'auto' : 'manual'
+        payout_type: payoutType
       })
       .select()
       .single();
 
-    if (insertError) {
+    if (withdrawalError) {
       // Refund balance on error
-      await supabase
+      await supabaseAdmin
         .from('profiles')
         .update({ balance: profile.balance })
         .eq('id', user.id);
 
-      throw insertError;
+      console.error('Withdrawal creation error:', withdrawalError);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'فشل في إنشاء طلب السحب'
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // Create transaction record
-    await supabase.from('transactions').insert({
+    await supabaseAdmin.from('transactions').insert({
       user_id: user.id,
       type: 'withdrawal',
       amount: -amount,
@@ -182,18 +213,16 @@ serve(async (req) => {
       status: 'pending'
     });
 
-    // Process auto payout if applicable
-    if (isAutoPayout && nowpaymentsApiKey) {
-      console.log(`Auto payout triggered for withdrawal ${withdrawal.id}: $${amount}`);
-
+    // If auto payout, process immediately
+    if (isAutoPayout) {
       try {
+        console.log('Processing auto payout for withdrawal:', withdrawal.id);
+        
         const payoutResponse = await fetch(`${NOWPAYMENTS_API_URL}/payout`, {
           method: 'POST',
           headers: {
             'x-api-key': nowpaymentsApiKey,
-            'Authorization': `Bearer ${nowpaymentsApiKey}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             address: walletAddress,
@@ -204,99 +233,103 @@ serve(async (req) => {
         });
 
         const payoutResult = await payoutResponse.json();
-        console.log('Auto payout result:', payoutResult);
+        console.log('NOWPayments payout response:', payoutResult);
 
         if (payoutResponse.ok && payoutResult.id) {
           // Update withdrawal as completed
-          await supabase
+          await supabaseAdmin
             .from('crypto_withdrawals')
             .update({
               status: 'completed',
               processed_at: new Date().toISOString(),
-              withdrawal_id: payoutResult.id?.toString() || null,
+              withdrawal_id: payoutResult.id?.toString(),
               tx_hash: payoutResult.hash || null
             })
             .eq('id', withdrawal.id);
 
-          await supabase
+          // Update transaction
+          await supabaseAdmin
             .from('transactions')
             .update({ status: 'completed' })
             .eq('user_id', user.id)
             .eq('type', 'withdrawal')
             .eq('status', 'pending');
 
-          // Log auto payout
-          await supabase.from('activity_logs').insert({
-            admin_id: null,
-            action: 'AUTO_PAYOUT_SUCCESS',
+          // Log activity
+          await supabaseAdmin.from('activity_logs').insert({
+            action: 'AUTO_WITHDRAWAL_SUCCESS',
             target_id: withdrawal.id,
-            details: { amount, payout_id: payoutResult.id }
+            details: { amount, currency, payout_id: payoutResult.id }
           });
 
-          return new Response(
-            JSON.stringify({ 
-              success: true, 
-              message: 'تم إرسال طلب السحب ومعالجته تلقائياً',
-              withdrawal: { ...withdrawal, status: 'completed' },
-              auto_processed: true
-            }),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          return new Response(JSON.stringify({
+            success: true,
+            auto_processed: true,
+            message: 'تم إرسال السحب تلقائياً بنجاح! 🎉',
+            withdrawal: { ...withdrawal, status: 'completed' }
+          }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
         } else {
-          // Auto payout failed, keep as pending for manual review
-          const errorMsg = payoutResult.message || payoutResult.error || 'Auto payout failed';
+          // Mark as error but don't refund (admin can retry)
+          const errorMsg = payoutResult.message || payoutResult.error || 'Unknown error';
           
-          await supabase
+          await supabaseAdmin
             .from('crypto_withdrawals')
             .update({
-              payout_type: 'manual',
-              withdrawal_id: `AUTO_FAILED: ${errorMsg}`
+              status: 'error',
+              withdrawal_id: `AUTO_ERROR: ${errorMsg}`
             })
             .eq('id', withdrawal.id);
 
-          await supabase.from('activity_logs').insert({
-            admin_id: null,
-            action: 'AUTO_PAYOUT_FAILED',
+          await supabaseAdmin.from('activity_logs').insert({
+            action: 'AUTO_WITHDRAWAL_FAILED',
             target_id: withdrawal.id,
-            details: { amount, error: errorMsg }
+            details: { amount, currency, error: errorMsg }
           });
 
-          console.error('Auto payout failed:', errorMsg);
+          return new Response(JSON.stringify({
+            success: true,
+            auto_processed: false,
+            message: 'تم إنشاء الطلب، لكن فشل الدفع التلقائي. سيتم المراجعة يدوياً.',
+            withdrawal
+          }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-      } catch (autoError) {
-        console.error('Auto payout error:', autoError);
+
+      } catch (payoutError: unknown) {
+        console.error('Auto payout error:', payoutError);
+        const errorMessage = payoutError instanceof Error ? payoutError.message : 'Unknown error';
         
-        // Mark as manual for admin review
-        await supabase
+        await supabaseAdmin
           .from('crypto_withdrawals')
           .update({
-            payout_type: 'manual',
-            withdrawal_id: `AUTO_ERROR: ${autoError instanceof Error ? autoError.message : 'Unknown error'}`
+            status: 'error',
+            withdrawal_id: `AUTO_FAILED: ${errorMessage}`
           })
           .eq('id', withdrawal.id);
+
+        return new Response(JSON.stringify({
+          success: true,
+          auto_processed: false,
+          message: 'تم إنشاء الطلب، سيتم المراجعة يدوياً.',
+          withdrawal
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: isAutoPayout 
-          ? 'تم إرسال طلب السحب للمعالجة التلقائية' 
-          : 'تم إرسال طلب السحب للمراجعة',
-        withdrawal,
-        auto_processed: false
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    // Manual payout - just return success
+    return new Response(JSON.stringify({
+      success: true,
+      auto_processed: false,
+      message: 'تم إنشاء طلب السحب بنجاح. يتطلب موافقة المسؤول.',
+      withdrawal
+    }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-  } catch (error) {
-    console.error('Create withdrawal error:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'حدث خطأ أثناء إنشاء طلب السحب'
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+  } catch (error: unknown) {
+    console.error('Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return new Response(JSON.stringify({
+      success: false,
+      error: errorMessage
+    }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
