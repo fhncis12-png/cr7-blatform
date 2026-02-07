@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     target: 'esnext',
-    minify: 'terser',
+    minify: 'esbuild', // Use esbuild which is built-in to Vite instead of terser
     cssMinify: true,
     rollupOptions: {
       output: {
