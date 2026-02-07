@@ -173,6 +173,7 @@ const Withdrawals = () => {
     switch (status) {
       case 'pending': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
       case 'completed': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
+      case 'paid': return 'text-green-500 bg-green-500/10 border-green-500/20';
       case 'rejected': return 'text-rose-500 bg-rose-500/10 border-rose-500/20';
       case 'error': return 'text-rose-600 bg-rose-600/10 border-rose-600/20';
       default: return 'text-muted-foreground bg-muted/10 border-muted/20';
@@ -183,6 +184,7 @@ const Withdrawals = () => {
     switch (status) {
       case 'pending': return 'معلق';
       case 'completed': return 'مكتمل';
+      case 'paid': return 'مدفوع';
       case 'rejected': return 'مرفوض';
       case 'error': return 'خطأ';
       default: return status;
