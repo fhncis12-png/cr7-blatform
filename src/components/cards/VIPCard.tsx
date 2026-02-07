@@ -129,9 +129,9 @@ export const VIPCard = ({ vipLevel, currentLevel, index }: VIPCardProps) => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex items-end justify-between relative z-10">
-        {/* Player Image - Adjusted z-index and position */}
-        <div className="w-[42%] relative h-[105%] flex items-end z-10 pointer-events-none">
+      <div className="flex-1 relative z-10 overflow-hidden">
+        {/* Player Image - Positioned absolute to not affect layout */}
+        <div className="absolute left-0 bottom-0 w-[45%] h-[110%] flex items-end z-10 pointer-events-none">
           <motion.img 
             src={players[vipLevel.level]} 
             alt={vipLevel.name}
@@ -139,17 +139,17 @@ export const VIPCard = ({ vipLevel, currentLevel, index }: VIPCardProps) => {
           />
         </div>
 
-        {/* Info Boxes Grid - Higher z-index to stay on top */}
-        <div className="w-[55%] grid grid-cols-2 gap-2 pb-2 z-20" dir="rtl">
+        {/* Info Boxes Grid - Fixed position and size */}
+        <div className="absolute right-0 bottom-0 w-[55%] grid grid-cols-2 gap-2 pb-2 z-20" dir="rtl">
           {/* Daily Tasks */}
-          <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-2 flex flex-col items-center justify-center border border-white/20 shadow-xl min-h-[65px] transition-colors hover:bg-white/15">
+          <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-2 flex flex-col items-center justify-center border border-white/20 shadow-xl h-[75px] transition-colors hover:bg-white/15">
             <Calendar className={`w-4 h-4 ${colors.text} mb-1`} />
             <span className="text-base font-black text-white leading-none">{vipLevel.dailyChallengeLimit}</span>
             <span className="text-[7px] text-zinc-300 font-bold mt-1 uppercase text-center">المهام اليومية</span>
           </div>
 
           {/* Yield/Return */}
-          <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-2 flex flex-col items-center justify-center border border-white/20 shadow-xl min-h-[65px] transition-colors hover:bg-white/15">
+          <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-2 flex flex-col items-center justify-center border border-white/20 shadow-xl h-[75px] transition-colors hover:bg-white/15">
             <TrendingUp className="w-4 h-4 text-emerald-400 mb-1" />
             <div className="flex items-center gap-0.5">
               <span className="text-base font-black text-white leading-none">{vipLevel.simpleInterest}</span>
@@ -159,7 +159,7 @@ export const VIPCard = ({ vipLevel, currentLevel, index }: VIPCardProps) => {
           </div>
 
           {/* Daily Profit */}
-          <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-2 flex flex-col items-center justify-center border border-white/20 shadow-xl min-h-[65px] transition-colors hover:bg-white/15">
+          <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-2 flex flex-col items-center justify-center border border-white/20 shadow-xl h-[75px] transition-colors hover:bg-white/15">
             <DollarSign className="w-4 h-4 text-yellow-500 mb-1" />
             <div className="flex flex-col items-center leading-none">
               <span className="text-[13px] font-black text-white">{formatNumber(vipLevel.dailyProfit)}</span>
@@ -169,7 +169,7 @@ export const VIPCard = ({ vipLevel, currentLevel, index }: VIPCardProps) => {
           </div>
 
           {/* Total Profit */}
-          <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-2 flex flex-col items-center justify-center border border-white/20 shadow-xl min-h-[65px] transition-colors hover:bg-white/15">
+          <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-2 flex flex-col items-center justify-center border border-white/20 shadow-xl h-[75px] transition-colors hover:bg-white/15">
             <Coins className="w-4 h-4 text-yellow-600 mb-1" />
             <div className="flex flex-col items-center leading-none">
               <span className="text-[13px] font-black text-white">{formatNumber(vipLevel.totalProfit).split('.')[0]}</span>
