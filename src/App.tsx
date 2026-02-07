@@ -11,6 +11,7 @@ import VIP from "./pages/VIP";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import React, { useEffect } from 'react';
 
 // Admin Pages
 import { AdminLayout } from "./components/layout/AdminLayout";
@@ -29,58 +30,73 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
+  console.log('ProtectedRoute - User:', user?.id, 'Loading:', loading);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-gold border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
   
   if (!user) {
+    console.log('ProtectedRoute - No user, redirecting to /auth');
     return <Navigate to="/auth" replace />;
   }
   
   return <>{children}</>;
 };
 
-const AppRoutes = () => (
-  <Routes>
-    <Route path="/auth" element={<Auth />} />
-    
-    {/* User Routes */}
-    <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-    <Route path="/challenges" element={<ProtectedRoute><Challenges /></ProtectedRoute>} />
-    <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
-    <Route path="/vip" element={<ProtectedRoute><VIP /></ProtectedRoute>} />
-    <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+const AppRoutes = () => {
+  useEffect(() => {
+    console.log('AppRoutes mounted');
+  }, []);
 
-    {/* Admin Routes */}
-    <Route path="/admin/login" element={<AdminLogin />} />
-    <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
-    <Route path="/admin/users" element={<AdminLayout><AdminUsers /></AdminLayout>} />
-    <Route path="/admin/withdrawals" element={<AdminLayout><AdminWithdrawals /></AdminLayout>} />
-    <Route path="/admin/vip" element={<AdminLayout><AdminVIP /></AdminLayout>} />
-    <Route path="/admin/challenges" element={<AdminLayout><AdminChallenges /></AdminLayout>} />
-    <Route path="/admin/logs" element={<AdminLayout><AdminLogs /></AdminLayout>} />
-    <Route path="/admin/settings" element={<AdminLayout><AdminSettings /></AdminLayout>} />
-    
-    <Route path="*" element={<NotFound />} />
-  </Routes>
-);
+  return (
+    <Routes>
+      <Route path="/auth" element={<Auth />} />
+      
+      {/* User Routes */}
+      <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+      <Route path="/challenges" element={<ProtectedRoute><Challenges /></ProtectedRoute>} />
+      <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
+      <Route path="/vip" element={<ProtectedRoute><VIP /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+      {/* Admin Routes */}
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+      <Route path="/admin/users" element={<AdminLayout><AdminUsers /></AdminLayout>} />
+      <Route path="/admin/withdrawals" element={<AdminLayout><AdminWithdrawals /></AdminLayout>} />
+      <Route path="/admin/vip" element={<AdminLayout><AdminVIP /></AdminLayout>} />
+      <Route path="/admin/challenges" element={<AdminLayout><AdminChallenges /></AdminLayout>} />
+      <Route path="/admin/logs" element={<AdminLayout><AdminLogs /></AdminLayout>} />
+      <Route path="/admin/settings" element={<AdminLayout><AdminSettings /></AdminLayout>} />
+      
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
+const App = () => {
+  useEffect(() => {
+    console.log('App component rendered');
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
