@@ -29,13 +29,17 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const checkAdminAuth = async () => {
       try {
+        console.log('AdminLayout: Checking auth...');
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!session?.user) {
+          console.log('AdminLayout: No session found');
           setIsAdmin(false);
           setLoading(false);
           return;
         }
+
+        console.log('AdminLayout: Session found for user:', session.user.email);
 
         // Check if user has admin role
         const { data: roleData, error } = await supabase
@@ -46,15 +50,14 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
           .maybeSingle();
 
         if (error) {
-          console.error('Role check error:', error);
-          // If table doesn't exist, we might need to handle it
+          console.error('AdminLayout: Role check error:', error);
           setIsAdmin(false);
         } else {
-          console.log('Admin check result:', !!roleData);
+          console.log('AdminLayout: Admin check result:', !!roleData);
           setIsAdmin(!!roleData);
         }
       } catch (error) {
-        console.error('Auth check error:', error);
+        console.error('AdminLayout: Auth check error:', error);
         setIsAdmin(false);
       } finally {
         setLoading(false);
@@ -65,8 +68,10 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('AdminLayout: Auth state changed:', event);
       if (event === 'SIGNED_OUT') {
         setIsAdmin(false);
+        setLoading(false);
         return;
       }
       
@@ -79,13 +84,26 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
           .maybeSingle();
         
         setIsAdmin(!!roleData);
+        setLoading(false);
       } else {
         setIsAdmin(false);
+        setLoading(false);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Handle stuck loading state
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.log('AdminLayout: Stuck loading detected, forcing check...');
+        setLoading(false);
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   if (loading) {
     return (
@@ -98,7 +116,8 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (!isAdmin) {
+  if (isAdmin === false) {
+    console.log('AdminLayout: Not admin, redirecting to login');
     return <Navigate to="/admin/login" replace />;
   }
 
@@ -161,7 +180,7 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
         </div>
       </aside>
 
-      {/* Mobile Header */}
+      {/* Mobile Sidebar & Header */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="md:hidden flex items-center justify-between p-4 border-b border-border/50 bg-card/50 backdrop-blur-xl">
           <div className="flex items-center gap-2">

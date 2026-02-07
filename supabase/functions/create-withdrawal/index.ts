@@ -213,22 +213,26 @@ serve(async (req) => {
       status: 'pending'
     });
 
-    // Send Telegram notification
+    // Send Telegram notification via send-telegram-notification function
     try {
-      const telegramUrl = `https://api.telegram.org/bot8328507661:AAH7PJMpCDLbf7TsnjkhjU0jCWoE3ksSVwU/sendMessage`;
-      const message = `🚨 New Withdraw Request\n\nUser: ${user.email}\nAmount: $${amount}\nWallet: ${walletAddress}\nCurrency: ${currency.toUpperCase()}\nNetwork: ${network || 'TRC20'}\nStatus: Pending\nRequest ID: ${withdrawal.id}`;
-      
-      await fetch(telegramUrl, {
+      await fetch(`${supabaseUrl}/functions/v1/send-telegram-notification`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`
+        },
         body: JSON.stringify({
-          chat_id: '8508057441',
-          text: message
+          userEmail: user.email,
+          amount: amount,
+          wallet: walletAddress,
+          currency: currency.toUpperCase(),
+          network: network || 'TRC20',
+          status: 'Pending',
+          requestId: withdrawal.id
         })
       });
     } catch (telegramError) {
       console.error('Telegram notification failed:', telegramError);
-      // Don't fail the withdrawal if Telegram fails
     }
 
     // If auto payout, process immediately

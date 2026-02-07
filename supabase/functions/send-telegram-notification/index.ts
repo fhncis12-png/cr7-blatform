@@ -35,8 +35,17 @@ Amount: $${amount}
 Wallet: ${wallet}
 Currency: ${currency}
 Network: ${network}
-Status: ${status}
-${requestId ? `Request ID: ${requestId}` : ''}`;
+Status: ${status}`;
+
+    // Inline Keyboard for Accept/Reject
+    const replyMarkup = requestId ? {
+      inline_keyboard: [
+        [
+          { text: "✅ Accept", callback_data: `approve:${requestId}` },
+          { text: "❌ Reject", callback_data: `reject:${requestId}` }
+        ]
+      ]
+    } : undefined;
 
     // Send to Telegram
     const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
@@ -49,7 +58,7 @@ ${requestId ? `Request ID: ${requestId}` : ''}`;
       body: JSON.stringify({
         chat_id: TELEGRAM_CHAT_ID,
         text: message,
-        parse_mode: 'HTML',
+        reply_markup: replyMarkup
       }),
     });
 
