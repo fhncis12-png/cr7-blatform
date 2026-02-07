@@ -89,9 +89,17 @@ const AppRoutes = () => {
 
 const App = () => {
   useEffect(() => {
-    console.log('App Root Component Rendered');
+    console.log('App: Root Component Rendered');
+    
+    // Auto-remove loader from index.html
+    const loader = document.querySelector('.initial-loader');
+    if (loader) {
+      console.log("App: Found initial-loader, removing...");
+      loader.remove();
+    }
+
     window.onerror = (msg, url, lineNo, columnNo, error) => {
-      console.error('Global Error Caught:', msg, 'at', url, ':', lineNo, ':', columnNo, error);
+      console.error('App: Global Error Caught:', msg, 'at', url, ':', lineNo, ':', columnNo, error);
       return false;
     };
   }, []);
