@@ -35,21 +35,36 @@ const queryClient = new QueryClient({
 });
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, error } = useAuth();
   
-  console.log('ProtectedRoute - User ID:', user?.id, 'Loading State:', loading);
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-gold border-t-transparent rounded-full animate-spin" />
-        <p className="ml-3 text-gold font-bold">جاري التحميل...</p>
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center">
+        <div className="w-10 h-10 border-4 border-gold border-t-transparent rounded-full animate-spin" />
+        <p className="mt-4 text-gold font-bold">جاري التحميل...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+          <span className="text-red-500 text-2xl">⚠️</span>
+        </div>
+        <h2 className="text-xl font-bold text-white mb-2">حدث خطأ في الاتصال</h2>
+        <p className="text-white/60 mb-6">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="bg-gradient-gold text-black px-8 py-3 rounded-xl font-bold"
+        >
+          إعادة المحاولة
+        </button>
       </div>
     );
   }
   
   if (!user) {
-    console.log('ProtectedRoute - No user found, redirecting to /auth');
     return <Navigate to="/auth" replace />;
   }
   
@@ -57,10 +72,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AppRoutes = () => {
-  useEffect(() => {
-    console.log('AppRoutes Component Mounted');
-  }, []);
-
   return (
     <Routes>
       <Route path="/auth" element={<Auth />} />
@@ -89,19 +100,9 @@ const AppRoutes = () => {
 
 const App = () => {
   useEffect(() => {
-    console.log('App: Root Component Rendered');
-    
     // Auto-remove loader from index.html
     const loader = document.querySelector('.initial-loader');
-    if (loader) {
-      console.log("App: Found initial-loader, removing...");
-      loader.remove();
-    }
-
-    window.onerror = (msg, url, lineNo, columnNo, error) => {
-      console.error('App: Global Error Caught:', msg, 'at', url, ':', lineNo, ':', columnNo, error);
-      return false;
-    };
+    if (loader) loader.remove();
   }, []);
 
   return (

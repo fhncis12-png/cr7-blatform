@@ -25,6 +25,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  error: string | null;
   signUp: (email: string, password: string, username: string, referralCode?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -38,9 +39,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchProfile = async (userId: string) => {
-    console.log('Fetching profile for user:', userId);
+    console.log('Auth: Fetching profile for user:', userId);
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -49,13 +51,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .maybeSingle();
       
       if (error) {
-        console.error('Error fetching profile:', error);
+        console.error('Auth: Error fetching profile:', error);
         return null;
       }
-      console.log('Profile data received:', data);
       return data as Profile | null;
     } catch (err) {
-      console.error('Unexpected error fetching profile:', err);
+      console.error('Auth: Unexpected error fetching profile:', err);
       return null;
     }
   };
@@ -72,7 +73,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const initializeAuth = async () => {
       try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        console.log('Auth: Initializing...');
+        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) throw sessionError;
+
         if (!mounted) return;
 
         if (initialSession) {
@@ -84,27 +89,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setLoading(false);
           }
         } else {
+          console.log('Auth: No initial session found');
           setLoading(false);
         }
-      } catch (err) {
-        console.error('Error during auth initialization:', err);
-        if (mounted) setLoading(false);
+      } catch (err: any) {
+        console.error('Auth: Initialization error:', err);
+        if (mounted) {
+          setError(err.message || 'فشل الاتصال بخادم المصادقة');
+          setLoading(false);
+        }
       }
     };
 
     initializeAuth();
 
-    // Safety timeout to prevent infinite loading
+    // Safety timeout - reduced to 4s for better UX
     const safetyTimeout = setTimeout(() => {
       if (mounted && loading) {
         console.warn('Auth: Safety timeout reached, forcing loading to false');
         setLoading(false);
       }
-    }, 5000);
+    }, 4000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
-        console.log('Auth state changed:', event, currentSession?.user?.id);
+        console.log('Auth: State changed:', event);
         if (!mounted) return;
 
         setSession(currentSession);
@@ -128,29 +137,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string, username: string, referralCode?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          username,
-          referral_code: referralCode || null,
-        }
+        data: { username, referral_code: referralCode || null }
       }
     });
-    
     return { error };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
 
@@ -167,6 +165,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       session,
       profile,
       loading,
+      error,
       signUp,
       signIn,
       signOut,
