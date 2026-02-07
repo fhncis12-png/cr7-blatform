@@ -46,31 +46,11 @@ const Index = () => {
     }
   };
 
-  if (loading) {
+  if (loading || !profile) {
     return (
       <PageLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="w-8 h-8 border-4 border-gold border-t-transparent rounded-full animate-smooth-spin" />
-        </div>
-      </PageLayout>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <PageLayout>
-        <div className="flex flex-col items-center justify-center min-h-[50vh] px-4 text-center">
-          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
-            <Target className="w-8 h-8 text-red-500" />
-          </div>
-          <h2 className="text-xl font-bold text-white mb-2">لم يتم العثور على ملفك الشخصي</h2>
-          <p className="text-white/40 mb-6">يرجى المحاولة مرة أخرى أو التأكد من إعدادات قاعدة البيانات.</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="bg-gradient-gold text-black px-6 py-2 rounded-xl font-bold"
-          >
-            إعادة تحميل الصفحة
-          </button>
         </div>
       </PageLayout>
     );
