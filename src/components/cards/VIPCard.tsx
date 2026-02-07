@@ -33,8 +33,9 @@ const vipColors: Record<number, {
   text: string, 
   glow: string, 
   border: string, 
-  particle: string,
-  depth: string,
+  particleColor: string,
+  particleRGB: string,
+  depth: string, 
   shine: boolean
 }> = {
   0: { 
@@ -42,7 +43,8 @@ const vipColors: Record<number, {
     text: 'text-zinc-400', 
     glow: 'rgba(100, 100, 100, 0.1)', 
     border: 'border-zinc-600/20', 
-    particle: 'bg-zinc-500/10',
+    particleColor: '#808080',
+    particleRGB: '128, 128, 128',
     depth: 'shadow-none',
     shine: false
   },
@@ -51,7 +53,8 @@ const vipColors: Record<number, {
     text: 'text-zinc-300', 
     glow: 'rgba(200, 200, 200, 0.15)', 
     border: 'border-zinc-400/30', 
-    particle: 'bg-zinc-400/15',
+    particleColor: '#C8C8C8',
+    particleRGB: '200, 200, 200',
     depth: 'shadow-lg',
     shine: false
   },
@@ -60,7 +63,8 @@ const vipColors: Record<number, {
     text: 'text-[#D4AF37]', 
     glow: 'rgba(212, 175, 55, 0.25)', 
     border: 'border-[#D4AF37]/40', 
-    particle: 'bg-[#D4AF37]/20',
+    particleColor: '#D4AF37',
+    particleRGB: '212, 175, 55',
     depth: 'shadow-[0_0_15px_rgba(212,175,55,0.2)]',
     shine: true
   },
@@ -69,7 +73,8 @@ const vipColors: Record<number, {
     text: 'text-purple-400', 
     glow: 'rgba(168, 85, 247, 0.35)', 
     border: 'border-purple-500/50', 
-    particle: 'bg-purple-400/30',
+    particleColor: '#A855F7',
+    particleRGB: '168, 85, 247',
     depth: 'shadow-[0_0_25px_rgba(168,85,247,0.3)]',
     shine: true
   },
@@ -78,7 +83,8 @@ const vipColors: Record<number, {
     text: 'text-blue-400', 
     glow: 'rgba(59, 130, 246, 0.45)', 
     border: 'border-blue-500/60', 
-    particle: 'bg-blue-400/40',
+    particleColor: '#3B82F6',
+    particleRGB: '59, 130, 246',
     depth: 'shadow-[0_0_35px_rgba(59,130,246,0.4)]',
     shine: true
   },
@@ -87,53 +93,57 @@ const vipColors: Record<number, {
     text: 'text-cyan-300', 
     glow: 'rgba(34, 211, 238, 0.6)', 
     border: 'border-cyan-400/70', 
-    particle: 'bg-white/50',
+    particleColor: '#22D3EE',
+    particleRGB: '34, 211, 238',
     depth: 'shadow-[0_0_50px_rgba(34,211,238,0.5)]',
     shine: true
   },
 };
 
-const Particle = ({ color, level }: { color: string, level: number }) => {
+// تأثير الجسيمات الدائرية الملونة
+const CircleParticle = ({ color, level, particleRGB }: { color: string, level: number, particleRGB: string }) => {
   const randomX = useMemo(() => Math.random() * 100, []);
-  const randomDelay = useMemo(() => Math.random() * 5, []);
+  const randomY = useMemo(() => Math.random() * 100, []);
+  const randomDelay = useMemo(() => Math.random() * 3, []);
+  const randomSize = useMemo(() => 2 + Math.random() * 4, []);
   
-  // تأثيرات متدرجة حسب المستوى
+  // إعدادات التأثيرات المتدرجة
   const getParticleConfig = (vipLevel: number) => {
     switch(vipLevel) {
       case 2: // VIP2 - يشد الانتباه
         return {
-          duration: 5 + Math.random() * 3,
-          maxOpacity: 0.6,
-          scale: [0, 1, 0],
-          yOffset: 120
+          duration: 6 + Math.random() * 2,
+          maxOpacity: 0.5,
+          maxScale: 1.2,
+          count: 6
         };
       case 3: // VIP3 - يحس بالقوة
         return {
-          duration: 4 + Math.random() * 2,
-          maxOpacity: 0.7,
-          scale: [0, 1.3, 0],
-          yOffset: 120
+          duration: 5 + Math.random() * 2,
+          maxOpacity: 0.65,
+          maxScale: 1.5,
+          count: 10
         };
       case 4: // VIP4 - يحس بالهيبة
         return {
-          duration: 3.5 + Math.random() * 2,
-          maxOpacity: 0.8,
-          scale: [0, 1.5, 0],
-          yOffset: 120
+          duration: 4 + Math.random() * 1.5,
+          maxOpacity: 0.75,
+          maxScale: 1.8,
+          count: 14
         };
       case 5: // VIP5 - يحس بالأسطورة
         return {
-          duration: 3 + Math.random() * 1.5,
-          maxOpacity: 0.9,
-          scale: [0, 1.8, 0],
-          yOffset: 120
+          duration: 3 + Math.random() * 1,
+          maxOpacity: 0.85,
+          maxScale: 2.2,
+          count: 20
         };
       default:
         return {
-          duration: 6 + Math.random() * 4,
-          maxOpacity: 0.8,
-          scale: [0, 1.2, 0],
-          yOffset: 120
+          duration: 6 + Math.random() * 2,
+          maxOpacity: 0.6,
+          maxScale: 1.2,
+          count: 0
         };
     }
   };
@@ -142,14 +152,33 @@ const Particle = ({ color, level }: { color: string, level: number }) => {
 
   return (
     <motion.div
-      className={`absolute w-1 h-1 rounded-full ${color} blur-[0.5px]`}
-      initial={{ x: `${randomX}%`, y: "110%", opacity: 0 }}
-      animate={{ 
-        y: [`110%`, `-10%`], 
-        opacity: [0, config.maxOpacity, 0], 
-        scale: config.scale 
+      className="absolute rounded-full"
+      style={{
+        width: randomSize,
+        height: randomSize,
+        left: `${randomX}%`,
+        top: `${randomY}%`,
+        backgroundColor: color,
+        boxShadow: `0 0 ${randomSize * 2}px ${color}, 0 0 ${randomSize * 4}px rgba(${particleRGB}, 0.6)`,
       }}
-      transition={{ duration: config.duration, repeat: Infinity, delay: randomDelay, ease: "linear" }}
+      initial={{ 
+        opacity: 0, 
+        scale: 0,
+        y: 0,
+        x: 0
+      }}
+      animate={{ 
+        opacity: [0, config.maxOpacity, config.maxOpacity, 0],
+        scale: [0, config.maxScale, config.maxScale, 0],
+        y: [-20 - Math.random() * 30, -80 - Math.random() * 40],
+        x: (Math.random() - 0.5) * 40
+      }}
+      transition={{ 
+        duration: config.duration, 
+        repeat: Infinity, 
+        delay: randomDelay, 
+        ease: "easeOut"
+      }}
     />
   );
 };
@@ -183,6 +212,17 @@ export const VIPCard = ({ vipLevel, currentLevel, index }: VIPCardProps) => {
     return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
+  // تحديد عدد الجسيمات حسب المستوى
+  const getParticleCount = (level: number) => {
+    switch(level) {
+      case 2: return 6;
+      case 3: return 10;
+      case 4: return 14;
+      case 5: return 20;
+      default: return 0;
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -209,16 +249,16 @@ export const VIPCard = ({ vipLevel, currentLevel, index }: VIPCardProps) => {
       {/* Light Sweep for VIP2+ */}
       {colors.shine && <LightSweep />}
 
-      {/* Particles for VIP2-5 with Progressive Effects */}
+      {/* Colored Circle Particles for VIP2-5 with Progressive Effects */}
       {vipLevel.level >= 2 && (
         <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden">
-          {[...Array(
-            vipLevel.level === 2 ? 4 :
-            vipLevel.level === 3 ? 8 :
-            vipLevel.level === 4 ? 12 :
-            vipLevel.level === 5 ? 18 : 0
-          )].map((_, i) => (
-            <Particle key={i} color={colors.particle} level={vipLevel.level} />
+          {[...Array(getParticleCount(vipLevel.level))].map((_, i) => (
+            <CircleParticle 
+              key={i} 
+              color={colors.particleColor} 
+              level={vipLevel.level}
+              particleRGB={colors.particleRGB}
+            />
           ))}
         </div>
       )}
@@ -265,8 +305,8 @@ export const VIPCard = ({ vipLevel, currentLevel, index }: VIPCardProps) => {
 
       {/* Main Content Area */}
       <div className="flex-1 relative z-10">
-        {/* Player Image - Independent Layer, Above BG, Below Stats */}
-        <div className="absolute left-0 bottom-0 w-[50%] h-[120%] flex items-end z-[15] pointer-events-none">
+        {/* Player Image - Moved Down to Avoid Text Overlap */}
+        <div className="absolute left-0 bottom-0 w-[50%] h-[110%] flex items-end z-[15] pointer-events-none translate-y-2">
           <motion.img 
             src={players[vipLevel.level]} 
             alt={vipLevel.name}
