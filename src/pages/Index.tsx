@@ -12,7 +12,6 @@ import { vipLevels } from '@/data/mockData';
 import heroBg from '@/assets/hero-bg.jpg';
 
 const Index = () => {
-  // Update triggered on Feb 06, 2026 for VIP page enhancements
   const { profile, loading } = useAuth();
   const { count: referralCount } = useReferrals();
   const { toast } = useToast();

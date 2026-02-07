@@ -4,23 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@keyframes ripple {
-  from {
-    width: 0px;
-    height: 0px;
-    opacity: 0.5;
-  }
-  to {
-    width: 200px;
-    height: 200px;
-    opacity: 0;
-  }
-}
-
-.animate-ripple {
-  animation: ripple 0.6s linear;
-}
-
 @layer base {
   :root {
     --background: 0 0% 7%;
