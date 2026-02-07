@@ -96,14 +96,60 @@ const vipColors: Record<number, {
 const Particle = ({ color, level }: { color: string, level: number }) => {
   const randomX = useMemo(() => Math.random() * 100, []);
   const randomDelay = useMemo(() => Math.random() * 5, []);
-  const randomDuration = useMemo(() => (level === 5 ? 4 : 6) + Math.random() * 4, [level]);
+  
+  // تأثيرات متدرجة حسب المستوى
+  const getParticleConfig = (vipLevel: number) => {
+    switch(vipLevel) {
+      case 2: // VIP2 - يشد الانتباه
+        return {
+          duration: 5 + Math.random() * 3,
+          maxOpacity: 0.6,
+          scale: [0, 1, 0],
+          yOffset: 120
+        };
+      case 3: // VIP3 - يحس بالقوة
+        return {
+          duration: 4 + Math.random() * 2,
+          maxOpacity: 0.7,
+          scale: [0, 1.3, 0],
+          yOffset: 120
+        };
+      case 4: // VIP4 - يحس بالهيبة
+        return {
+          duration: 3.5 + Math.random() * 2,
+          maxOpacity: 0.8,
+          scale: [0, 1.5, 0],
+          yOffset: 120
+        };
+      case 5: // VIP5 - يحس بالأسطورة
+        return {
+          duration: 3 + Math.random() * 1.5,
+          maxOpacity: 0.9,
+          scale: [0, 1.8, 0],
+          yOffset: 120
+        };
+      default:
+        return {
+          duration: 6 + Math.random() * 4,
+          maxOpacity: 0.8,
+          scale: [0, 1.2, 0],
+          yOffset: 120
+        };
+    }
+  };
+
+  const config = getParticleConfig(level);
 
   return (
     <motion.div
       className={`absolute w-1 h-1 rounded-full ${color} blur-[0.5px]`}
       initial={{ x: `${randomX}%`, y: "110%", opacity: 0 }}
-      animate={{ y: ["110%", "-10%"], opacity: [0, 0.8, 0], scale: [0, 1.2, 0] }}
-      transition={{ duration: randomDuration, repeat: Infinity, delay: randomDelay, ease: "linear" }}
+      animate={{ 
+        y: [`110%`, `-10%`], 
+        opacity: [0, config.maxOpacity, 0], 
+        scale: config.scale 
+      }}
+      transition={{ duration: config.duration, repeat: Infinity, delay: randomDelay, ease: "linear" }}
     />
   );
 };
@@ -163,10 +209,15 @@ export const VIPCard = ({ vipLevel, currentLevel, index }: VIPCardProps) => {
       {/* Light Sweep for VIP2+ */}
       {colors.shine && <LightSweep />}
 
-      {/* Particles for VIP3-5 */}
-      {vipLevel.level >= 3 && (
+      {/* Particles for VIP2-5 with Progressive Effects */}
+      {vipLevel.level >= 2 && (
         <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden">
-          {[...Array(vipLevel.level === 5 ? 15 : 8)].map((_, i) => (
+          {[...Array(
+            vipLevel.level === 2 ? 4 :
+            vipLevel.level === 3 ? 8 :
+            vipLevel.level === 4 ? 12 :
+            vipLevel.level === 5 ? 18 : 0
+          )].map((_, i) => (
             <Particle key={i} color={colors.particle} level={vipLevel.level} />
           ))}
         </div>
