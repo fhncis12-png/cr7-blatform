@@ -47,8 +47,10 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
 
         if (error) {
           console.error('Role check error:', error);
+          // If table doesn't exist, we might need to handle it
           setIsAdmin(false);
         } else {
+          console.log('Admin check result:', !!roleData);
           setIsAdmin(!!roleData);
         }
       } catch (error) {

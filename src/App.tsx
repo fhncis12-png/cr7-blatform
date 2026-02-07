@@ -6,6 +6,19 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Profile from "./pages/Profile";
+import Team from "./pages/Team";
+import VIP from "./pages/VIP";
+import Challenges from "./pages/Challenges";
+import AdminLogin from "./pages/admin/Login";
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminUsers from "./pages/admin/Users";
+import AdminWithdrawals from "./pages/admin/Withdrawals";
+import AdminVIP from "./pages/admin/VIP";
+import AdminChallenges from "./pages/admin/Challenges";
+import AdminSettings from "./pages/admin/Settings";
+import AdminActivityLogs from "./pages/admin/ActivityLogs";
+import { AdminLayout } from "./components/layout/AdminLayout";
 import React from 'react';
 
 const queryClient = new QueryClient();
@@ -36,8 +49,27 @@ const App = () => {
         <BrowserRouter>
           <AuthProvider>
             <Routes>
+              {/* Public Routes */}
               <Route path="/auth" element={<Auth />} />
+              
+              {/* User Routes */}
               <Route path="/" element={<SimpleAuthCheck><Index /></SimpleAuthCheck>} />
+              <Route path="/profile" element={<SimpleAuthCheck><Profile /></SimpleAuthCheck>} />
+              <Route path="/team" element={<SimpleAuthCheck><Team /></SimpleAuthCheck>} />
+              <Route path="/vip" element={<SimpleAuthCheck><VIP /></SimpleAuthCheck>} />
+              <Route path="/challenges" element={<SimpleAuthCheck><Challenges /></SimpleAuthCheck>} />
+              
+              {/* Admin Routes */}
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+              <Route path="/admin/users" element={<AdminLayout><AdminUsers /></AdminLayout>} />
+              <Route path="/admin/withdrawals" element={<AdminLayout><AdminWithdrawals /></AdminLayout>} />
+              <Route path="/admin/vip" element={<AdminLayout><AdminVIP /></AdminLayout>} />
+              <Route path="/admin/challenges" element={<AdminLayout><AdminChallenges /></AdminLayout>} />
+              <Route path="/admin/settings" element={<AdminLayout><AdminSettings /></AdminLayout>} />
+              <Route path="/admin/logs" element={<AdminLayout><AdminActivityLogs /></AdminLayout>} />
+              
+              {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AuthProvider>
